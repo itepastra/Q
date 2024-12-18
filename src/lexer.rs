@@ -104,6 +104,7 @@ impl Lexer {
             self.pos += 1;
         }
     }
+
     pub(super) fn get_token(&mut self) -> Result<Token, LexerError> {
         // Skip all the whitespace until something important starts again
         while self.get_char()?.is_whitespace() {
