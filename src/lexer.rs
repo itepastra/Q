@@ -71,11 +71,54 @@ impl Lexer {
         }
     }
 
+    fn parse_comment(&mut self) -> Result<Option<Token>, LexerError> {
+        let original = self.pos;
+        let mut comment = String::new();
+        // go to second slash position
+        self.pos += 1;
+        if self.get_char()? == '/' {
+            self.pos += 1;
+            while !self.get_char().unwrap_or('\n').is_newline() {
+                comment.push(self.get_char()?);
+                self.pos += 1;
+            }
+            return Ok(Some(Token::Comment(comment.trim().to_string())));
+        }
+        let star_count = self.get_repeat_len('*')?;
+        if star_count == 0 {
+            self.pos = original;
+            return Ok(None);
+        }
+        self.pos += star_count;
+        loop {
+            if self.get_repeat_len('*')? == star_count {
+                self.pos += star_count;
+                if self.get_char()? == '/' {
+                    self.pos += 1;
+                    return Ok(Some(Token::Comment(comment.trim().to_string())));
+                } else {
+                    comment.extend(repeat_n('*', star_count));
+                }
+            }
+            comment.push(self.get_char()?);
+            self.pos += 1;
+        }
+    }
     pub(super) fn get_token(&mut self) -> Result<Token, LexerError> {
         // Skip all the whitespace until something important starts again
         while self.get_char()?.is_whitespace() {
             self.pos += 1;
         }
+
+        // I want // to be a single line comment, and /* */ multiline, with any amount of stars
+        if self.get_char()? == '/' {
+            match self.parse_comment() {
+                Ok(Some(token)) => return Ok(token),
+                Ok(None) => {}
+                Err(err) => return Err(err),
+            }
+        }
+
         // If the first character is alphabetic that's an identifier (possibly keyword) start
         if self.get_char()?.is_alphabetic() {
             return self.parse_identifier();
@@ -129,5 +172,25 @@ mod test {
                 Err(super::LexerError::OutOfRangeError)
             ),
         }
+    }
+
+    #[test_case("// this is a comment", "this is a comment", 20; "single line simple comment")]
+    #[test_case("/* this is a comment */", "this is a comment", 23; "single line star comment")]
+    #[test_case(r#"/* this is a
+    multiline comment */"#, r#"this is a
+    multiline comment"#, 37; "multiline line star comment")]
+    #[test_case("/** multi star comment **/", "multi star comment", 26; "single line stars comment")]
+    #[test_case("/** multi /* star */ comment **/", "multi /* star */ comment", 32; "single line hard stars comment")]
+    fn comment_lexing(input: &'static str, correct: &'static str, correct_position: usize) {
+        let mut lexer = Lexer {
+            chars: input.chars().collect(),
+            pos: 0,
+        };
+
+        assert_eq!(
+            lexer.parse_comment().unwrap(),
+            Some(Token::Comment(correct.to_string()))
+        );
+        assert_eq!(lexer.pos, correct_position)
     }
 }
