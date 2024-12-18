@@ -91,6 +91,21 @@ mod test {
     use test_case::test_case;
 
     use super::Lexer;
+
+    #[test_case("*", 1; "single star")]
+    #[test_case("*********", 9; "many stars")]
+    #[test_case("***/**", 3; "interrupted stars")]
+    #[test_case("** ** ** ****", 2; "multiple star gaps")]
+    #[test_case("/* */", 0; "no star at start")]
+    #[test_case("", 0; "empty")]
+    fn run_length(input: &'static str, correct: usize) {
+        let lexer = Lexer {
+            chars: input.chars().collect(),
+            pos: 0,
+        };
+        assert_eq!(lexer.get_repeat_len('*').unwrap(), correct)
+    }
+
     #[test_case("ident with other stuff", Some("ident"); "when only letters")]
     #[test_case("id3nt with a number", Some("id3nt"); "when there is a number")]
     #[test_case("ιδεντ in greek", Some("ιδεντ"); "when there are funky letters")]
