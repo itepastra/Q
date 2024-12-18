@@ -6,6 +6,13 @@ type Name = String;
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
     OutOfRangeError,
+    ParseIntError,
+}
+
+impl From<ParseIntError> for LexerError {
+    fn from(_value: ParseIntError) -> Self {
+        Self::ParseIntError
+    }
 }
 
 trait SmartChar {
@@ -71,6 +78,18 @@ impl Lexer {
         }
     }
 
+    fn parse_integer(&mut self) -> Result<Token, LexerError> {
+        let mut number = String::new();
+        while self.get_char().is_ok_and(|c| c.is_digit(10))
+            || self.get_char().is_ok_and(|c| c == '-')
+        {
+            number.push(self.get_char()?);
+            self.pos += 1;
+        }
+
+        Ok(Token::Integer(number.parse()?))
+    }
+
     fn parse_comment(&mut self) -> Result<Option<Token>, LexerError> {
         let original = self.pos;
         let mut comment = String::new();
@@ -125,6 +144,12 @@ impl Lexer {
             return self.parse_identifier();
         }
 
+        // Numbers start with a digit, maybe also with a -
+        // TODO: allow numbers to start with + or -, possibly by putting before identifier
+        if self.get_char()?.is_digit(10) || self.get_char()? == '-' {
+            return self.parse_integer();
+        }
+
         todo!()
     }
 }
@@ -173,6 +198,18 @@ mod test {
                 Err(super::LexerError::OutOfRangeError)
             ),
         }
+    }
+
+    #[test_case("29210", 29210, 5; "positive integer")]
+    #[test_case("-29210", -29210, 6; "negaive integer")]
+    #[test_case("29210 and then some text", 29210, 5; "positive integer with trailing")]
+    fn integer_lexing(input: &'static str, correct: i64, correct_position: usize) {
+        let mut lexer = Lexer {
+            chars: input.chars().collect(),
+            pos: 0,
+        };
+        assert_eq!(lexer.parse_integer().unwrap(), Token::Integer(correct));
+        assert_eq!(lexer.pos, correct_position);
     }
 
     #[test_case("// this is a comment", "this is a comment", 20; "single line simple comment")]
