@@ -181,7 +181,9 @@ mod test {
     multiline comment */"#, r#"this is a
     multiline comment"#, 37; "multiline line star comment")]
     #[test_case("/** multi star comment **/", "multi star comment", 26; "single line stars comment")]
-    #[test_case("/** multi /* star */ comment **/", "multi /* star */ comment", 32; "single line hard stars comment")]
+    #[test_case("/** multi /* star */ comment **/ and this is not a comment anymore **/", "multi /* star */ comment", 32; "single line hard stars comment")]
+    #[test_case("//", "", 2; "empty single line comment")]
+    #[test_case("/* */and then there can be code", "", 5; "empty single star comment")]
     fn comment_lexing(input: &'static str, correct: &'static str, correct_position: usize) {
         let mut lexer = Lexer {
             chars: input.chars().collect(),
