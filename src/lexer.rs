@@ -8,6 +8,15 @@ pub enum LexerError {
     OutOfRangeError,
 }
 
+trait SmartChar {
+    fn is_newline(self) -> bool;
+}
+
+impl SmartChar for char {
+    fn is_newline(self) -> bool {
+        self == '\n'
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
