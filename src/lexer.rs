@@ -31,6 +31,13 @@ impl Lexer {
             Some(character) => Ok(*character),
         }
     }
+    pub(super) fn get_token(&mut self) -> Result<Token, LexerError> {
+        // Skip all the whitespace until something important starts again
+        while self.get_char()?.is_whitespace() {
+            self.pos += 1;
+        }
+        todo!()
+    }
 }
 
 #[cfg(test)]
