@@ -31,6 +31,24 @@ impl Lexer {
             Some(character) => Ok(*character),
         }
     }
+
+    fn get_char_at_offset(&self, offset: i32) -> Result<char, LexerError> {
+        tracing::trace!("getting char at {}", (self.pos as i32 + offset) as usize);
+        match self.chars.get((self.pos as i32 + offset) as usize) {
+            None => Err(LexerError::OutOfRangeError),
+            Some(character) => Ok(*character),
+        }
+    }
+
+    fn get_repeat_len(&self, target: char) -> Result<usize, LexerError> {
+        let mut len = 0;
+        while self.get_char_at_offset(len as i32) == Ok(target) {
+            len += 1;
+        }
+        tracing::debug!("found {} '{}' in a row", len, target);
+        Ok(len)
+    }
+
     fn parse_identifier(&mut self) -> Result<Token, LexerError> {
         let mut identifier = String::new();
         while self.get_char()?.is_alphanumeric() {
