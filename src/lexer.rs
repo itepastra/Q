@@ -57,6 +57,8 @@ pub(crate) enum Token {
     Function,
     Use,
     Namespace,
+    Seperator,
+    LineEnding,
     Ident(Name),
     Integer(Integer),
     Floating(Floating),
@@ -193,6 +195,8 @@ impl Lexer {
             '-' => Ok(Some(Token::Subtract)),
             '*' => Ok(Some(Token::Multiply)),
             '/' => Ok(Some(Token::Divide)),
+            ',' => Ok(Some(Token::Seperator)),
+            ';' => Ok(Some(Token::LineEnding)),
             _ => return Ok(None),
         };
         self.pos += 1;
@@ -330,15 +334,15 @@ mod test {
     #[test]
     fn test_lexer() {
         let input = r#"
-use std::rot_y
-// this is a comment
-x0 = 1 + i
-x2 = 2+0.1i
+use std::rot_y;
+// this is a comment;
+x0 = 1 + i;
+x2 = 2+0.1i;
 
-/* do hadamard gate or something */
+/* do hadamard gate or something; */
 fn hadamard() {
-    rot_y(pi/2)
-    rot_x(pi)
+    rot_y(pi/2);
+    rot_x(pi);
 }
 "#;
         let mut lexer = Lexer {
@@ -352,24 +356,27 @@ fn hadamard() {
             lexer.get_token().unwrap(),
             Token::Ident("rot_y".to_string())
         );
+        assert_eq!(lexer.get_token().unwrap(), Token::LineEnding);
         assert_eq!(
             lexer.get_token().unwrap(),
-            Token::Comment("this is a comment".to_string())
+            Token::Comment("this is a comment;".to_string())
         );
         assert_eq!(lexer.get_token().unwrap(), Token::Ident("x0".to_string()));
         assert_eq!(lexer.get_token().unwrap(), Token::Equals);
         assert_eq!(lexer.get_token().unwrap(), Token::Integer(1));
         assert_eq!(lexer.get_token().unwrap(), Token::Add);
         assert_eq!(lexer.get_token().unwrap(), Token::Imaginary);
+        assert_eq!(lexer.get_token().unwrap(), Token::LineEnding);
         assert_eq!(lexer.get_token().unwrap(), Token::Ident("x2".to_string()));
         assert_eq!(lexer.get_token().unwrap(), Token::Equals);
         assert_eq!(lexer.get_token().unwrap(), Token::Integer(2));
         assert_eq!(lexer.get_token().unwrap(), Token::Add);
         assert_eq!(lexer.get_token().unwrap(), Token::Floating(0.1));
         assert_eq!(lexer.get_token().unwrap(), Token::Imaginary);
+        assert_eq!(lexer.get_token().unwrap(), Token::LineEnding);
         assert_eq!(
             lexer.get_token().unwrap(),
-            Token::Comment("do hadamard gate or something".to_string())
+            Token::Comment("do hadamard gate or something;".to_string())
         );
         assert_eq!(lexer.get_token().unwrap(), Token::Function);
         assert_eq!(
@@ -388,6 +395,7 @@ fn hadamard() {
         assert_eq!(lexer.get_token().unwrap(), Token::Divide);
         assert_eq!(lexer.get_token().unwrap(), Token::Integer(2));
         assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::LineEnding);
         assert_eq!(
             lexer.get_token().unwrap(),
             Token::Ident("rot_x".to_string())
@@ -395,6 +403,7 @@ fn hadamard() {
         assert_eq!(lexer.get_token().unwrap(), Token::OpenParen);
         assert_eq!(lexer.get_token().unwrap(), Token::Floating(f64::consts::PI));
         assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::LineEnding);
         assert_eq!(lexer.get_token().unwrap(), Token::CloseBrace);
         assert_eq!(lexer.get_token(), Err(crate::lexer::LexerError::OutOfRange))
     }
