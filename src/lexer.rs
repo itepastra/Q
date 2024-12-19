@@ -53,6 +53,7 @@ pub(crate) enum Token {
     Divide,
     Imaginary,
     Function,
+    Use,
     Ident(Name),
     Integer(Integer),
     Floating(Floating),
@@ -103,6 +104,7 @@ impl Lexer {
             "e" => Ok(Token::Floating(f64::consts::E)),
             "i" => Ok(Token::Imaginary),
             "fn" => Ok(Token::Function),
+            "use" => Ok(Token::Use),
             _ => Ok(Token::Ident(identifier)),
         }
     }
