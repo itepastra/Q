@@ -39,6 +39,16 @@ impl SmartChar for char {
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Token {
+    OpenBrace,
+    CloseBrace,
+    OpenBrack,
+    CloseBrack,
+    OpenParen,
+    CloseParen,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
     Function,
     Ident(Name),
     Integer(Integer),
@@ -94,16 +104,6 @@ impl Lexer {
     fn parse_number(&mut self) -> Result<Token, LexerError> {
         let mut number = String::new();
         let mut is_float = false;
-        match self.get_char() {
-            Ok('-') => {
-                number.push('-');
-                self.pos += 1;
-            }
-            Ok('+') => self.pos += 1,
-            Ok(_) => {}
-            Err(_) => todo!(),
-        }
-
         while self.get_char().is_ok_and(|c| "0123456789._".contains(c)) {
             match self.get_char() {
                 Ok('_') => self.pos += 1,
@@ -169,10 +169,32 @@ impl Lexer {
         }
     }
 
+    fn match_single_tokens(&mut self) -> Result<Option<Token>, LexerError> {
+        let ret = match self.get_char()? {
+            '(' => Ok(Some(Token::OpenParen)),
+            ')' => Ok(Some(Token::CloseParen)),
+            '{' => Ok(Some(Token::OpenBrace)),
+            '}' => Ok(Some(Token::CloseBrace)),
+            '[' => Ok(Some(Token::OpenBrack)),
+            ']' => Ok(Some(Token::CloseBrack)),
+            '+' => Ok(Some(Token::Add)),
+            '-' => Ok(Some(Token::Subtract)),
+            '*' => Ok(Some(Token::Multiply)),
+            '/' => Ok(Some(Token::Divide)),
+            _ => return Ok(None),
+        };
+        self.pos += 1;
+        ret
+    }
+
     pub(super) fn get_token(&mut self) -> Result<Token, LexerError> {
         // Skip all the whitespace until something important starts again
         while self.get_char()?.is_whitespace() {
             self.pos += 1;
+        }
+
+        if let Some(tok) = self.match_single_tokens()? {
+            return Ok(tok);
         }
 
         // I want // to be a single line comment, and /* */ multiline, with any amount of stars
@@ -246,8 +268,6 @@ mod test {
     }
 
     #[test_case("29210", 29210, 5; "positive integer")]
-    #[test_case("+29210", 29210, 6; "explicit positive integer")]
-    #[test_case("-29210", -29210, 6; "negaive integer")]
     #[test_case("29210 and then some text", 29210, 5; "positive integer with trailing")]
     fn integer_lexing(input: &'static str, correct: Integer, correct_position: usize) {
         let mut lexer = Lexer {
@@ -259,8 +279,6 @@ mod test {
     }
 
     #[test_case("29210.3", 29210.3, 7; "positive float")]
-    #[test_case("+29210.3", 29210.3, 8; "explicit positive float")]
-    #[test_case("-29210.3", -29210.3, 8; "negaive float")]
     #[test_case("29210.3 and then some text", 29210.3, 7; "positive float with trailing")]
     #[test_case(".33", 0.33, 3; "no leading zero")]
     fn float_lexing(input: &'static str, correct: Floating, correct_position: usize) {
