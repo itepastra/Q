@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+// ^ remove when actually using the lexer
 use core::f64;
 use std::{
     iter::repeat_n,
@@ -10,31 +12,31 @@ type Name = String;
 
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
-    OutOfRangeError,
-    ParseIntError,
-    MultipleDotsError,
-    ParseFloatError,
+    OutOfRange,
+    ParseInt,
+    MultipleDots,
+    ParseFloat,
 }
 
 impl From<ParseIntError> for LexerError {
     fn from(_value: ParseIntError) -> Self {
-        Self::ParseIntError
+        Self::ParseInt
     }
 }
 
 impl From<ParseFloatError> for LexerError {
     fn from(_value: ParseFloatError) -> Self {
-        Self::ParseFloatError
+        Self::ParseFloat
     }
 }
 
 trait SmartChar {
-    fn is_newline(self) -> bool;
+    fn is_newline(&self) -> bool;
 }
 
 impl SmartChar for char {
-    fn is_newline(self) -> bool {
-        self == '\n'
+    fn is_newline(&self) -> bool {
+        *self == '\n'
     }
 }
 
@@ -71,7 +73,7 @@ impl Lexer {
     fn get_char(&self) -> Result<char, LexerError> {
         tracing::trace!("getting char at {}", self.pos);
         match self.chars.get(self.pos) {
-            None => Err(LexerError::OutOfRangeError),
+            None => Err(LexerError::OutOfRange),
             Some(character) => Ok(*character),
         }
     }
@@ -79,7 +81,7 @@ impl Lexer {
     fn get_char_at_offset(&self, offset: i32) -> Result<char, LexerError> {
         tracing::trace!("getting char at {}", (self.pos as i32 + offset) as usize);
         match self.chars.get((self.pos as i32 + offset) as usize) {
-            None => Err(LexerError::OutOfRangeError),
+            None => Err(LexerError::OutOfRange),
             Some(character) => Ok(*character),
         }
     }
@@ -118,7 +120,7 @@ impl Lexer {
                 Ok('_') => self.pos += 1,
                 Ok('.') => {
                     if is_float {
-                        return Err(LexerError::MultipleDotsError);
+                        return Err(LexerError::MultipleDots);
                     }
                     is_float = true;
                     number.push('.');
@@ -128,7 +130,7 @@ impl Lexer {
                     number.push(c);
                     self.pos += 1;
                 }
-                Err(err) => return Err(err.into()),
+                Err(err) => return Err(err),
             }
         }
         if is_float {
@@ -231,7 +233,7 @@ impl Lexer {
 
         // Numbers start with a digit, maybe also with a -
         // TODO: allow numbers to start with + or -, possibly by putting before identifier
-        if self.get_char()?.is_digit(10) || self.get_char()? == '-' {
+        if self.get_char()?.is_ascii_digit() {
             return self.parse_number();
         }
 
@@ -277,7 +279,7 @@ mod test {
                 assert_eq!(lexer.get_token().unwrap(), Token::Ident(id.to_string()));
                 assert_eq!(lexer.pos, id.chars().count());
             }
-            None => assert_eq!(lexer.get_token(), Err(super::LexerError::OutOfRangeError)),
+            None => assert_eq!(lexer.get_token(), Err(super::LexerError::OutOfRange)),
         }
     }
 
@@ -394,9 +396,6 @@ fn hadamard() {
         assert_eq!(lexer.get_token().unwrap(), Token::Floating(f64::consts::PI));
         assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
         assert_eq!(lexer.get_token().unwrap(), Token::CloseBrace);
-        assert_eq!(
-            lexer.get_token(),
-            Err(crate::lexer::LexerError::OutOfRangeError)
-        )
+        assert_eq!(lexer.get_token(), Err(crate::lexer::LexerError::OutOfRange))
     }
 }
