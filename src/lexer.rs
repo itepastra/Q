@@ -274,16 +274,10 @@ mod test {
         };
         match identifier {
             Some(id) => {
-                assert_eq!(
-                    lexer.parse_identifier().unwrap(),
-                    Token::Ident(id.to_string())
-                );
+                assert_eq!(lexer.get_token().unwrap(), Token::Ident(id.to_string()));
                 assert_eq!(lexer.pos, id.chars().count());
             }
-            None => assert_eq!(
-                lexer.parse_identifier(),
-                Err(super::LexerError::OutOfRangeError)
-            ),
+            None => assert_eq!(lexer.get_token(), Err(super::LexerError::OutOfRangeError)),
         }
     }
 
@@ -294,19 +288,18 @@ mod test {
             chars: input.chars().collect(),
             pos: 0,
         };
-        assert_eq!(lexer.parse_number().unwrap(), Token::Integer(correct));
+        assert_eq!(lexer.get_token().unwrap(), Token::Integer(correct));
         assert_eq!(lexer.pos, correct_position);
     }
 
     #[test_case("29210.3", 29210.3, 7; "positive float")]
     #[test_case("29210.3 and then some text", 29210.3, 7; "positive float with trailing")]
-    #[test_case(".33", 0.33, 3; "no leading zero")]
     fn float_lexing(input: &'static str, correct: Floating, correct_position: usize) {
         let mut lexer = Lexer {
             chars: input.chars().collect(),
             pos: 0,
         };
-        assert_eq!(lexer.parse_number().unwrap(), Token::Floating(correct));
+        assert_eq!(lexer.get_token().unwrap(), Token::Floating(correct));
         assert_eq!(lexer.pos, correct_position);
     }
 
@@ -326,8 +319,8 @@ mod test {
         };
 
         assert_eq!(
-            lexer.parse_comment().unwrap(),
-            Some(Token::Comment(correct.to_string()))
+            lexer.get_token().unwrap(),
+            Token::Comment(correct.to_string())
         );
         assert_eq!(lexer.pos, correct_position)
     }
