@@ -72,7 +72,7 @@
 
         # Build the actual crate itself, reusing the dependency
         # artifacts from above.
-        funq = craneLib.buildPackage (
+        q = craneLib.buildPackage (
           commonArgs
           // {
             inherit cargoArtifacts;
@@ -82,7 +82,7 @@
       {
         checks = {
           # Build the crate as part of `nix flake check` for convenience
-          inherit funq;
+          inherit q;
 
           # Run clippy (and deny all warnings) on the crate source,
           # again, reusing the dependency artifacts from above.
@@ -90,7 +90,7 @@
           # Note that this is done as a separate derivation so that
           # we can block the CI if there are issues here, but not
           # prevent downstream consumers from building our crate by itself.
-          funq-clippy = craneLib.cargoClippy (
+          q-clippy = craneLib.cargoClippy (
             commonArgs
             // {
               inherit cargoArtifacts;
@@ -98,7 +98,7 @@
             }
           );
 
-          funq-doc = craneLib.cargoDoc (
+          q-doc = craneLib.cargoDoc (
             commonArgs
             // {
               inherit cargoArtifacts;
@@ -106,30 +106,30 @@
           );
 
           # Check formatting
-          funq-fmt = craneLib.cargoFmt {
+          q-fmt = craneLib.cargoFmt {
             inherit src;
           };
 
-          funq-toml-fmt = craneLib.taploFmt {
+          q-toml-fmt = craneLib.taploFmt {
             src = pkgs.lib.sources.sourceFilesBySuffices src [ ".toml" ];
             # taplo arguments can be further customized below as needed
             # taploExtraArgs = "--config ./taplo.toml";
           };
 
           # Audit dependencies
-          funq-audit = craneLib.cargoAudit {
+          q-audit = craneLib.cargoAudit {
             inherit src advisory-db;
           };
 
           # Audit licenses
-          funq-deny = craneLib.cargoDeny {
+          q-deny = craneLib.cargoDeny {
             inherit src;
           };
 
           # Run tests with cargo-nextest
-          # Consider setting `doCheck = false` on `funq` if you do not want
+          # Consider setting `doCheck = false` on `q` if you do not want
           # the tests to run twice
-          funq-nextest = craneLib.cargoNextest (
+          q-nextest = craneLib.cargoNextest (
             commonArgs
             // {
               inherit cargoArtifacts;
@@ -141,10 +141,10 @@
 
         packages =
           {
-            default = funq;
+            default = q;
           }
           // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
-            funq-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (
+            q-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (
               commonArgs
               // {
                 inherit cargoArtifacts;
@@ -153,7 +153,7 @@
           };
 
         apps.default = flake-utils.lib.mkApp {
-          drv = funq;
+          drv = q;
         };
 
         devShells.default = craneLib.devShell {
