@@ -54,6 +54,7 @@ pub(crate) enum Token {
     Imaginary,
     Function,
     Use,
+    Namespace,
     Ident(Name),
     Integer(Integer),
     Floating(Floating),
@@ -211,6 +212,13 @@ impl Lexer {
             }
         }
 
+        // parse the :: token, for namespace access
+        if self.get_char()? == ':' && self.get_char_at_offset(1)? == ':' {
+            // skip to the end of the ::
+            self.pos += 2;
+            return Ok(Token::Namespace);
+        }
+
         // Now we can check all the single character tokens
         if let Some(tok) = self.match_single_tokens()? {
             return Ok(tok);
@@ -327,6 +335,7 @@ mod test {
     #[test]
     fn test_lexer() {
         let input = r#"
+use std::rot_y
 // this is a comment
 x0 = 1 + i
 x2 = 2+0.1i
@@ -341,6 +350,13 @@ fn hadamard() {
             chars: input.chars().collect(),
             pos: 0,
         };
+        assert_eq!(lexer.get_token().unwrap(), Token::Use);
+        assert_eq!(lexer.get_token().unwrap(), Token::Ident("std".to_string()));
+        assert_eq!(lexer.get_token().unwrap(), Token::Namespace);
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Ident("rot_y".to_string())
+        );
         assert_eq!(
             lexer.get_token().unwrap(),
             Token::Comment("this is a comment".to_string())
