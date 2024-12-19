@@ -1,10 +1,11 @@
+use core::f64;
 use std::{
     iter::repeat_n,
     num::{ParseFloatError, ParseIntError},
 };
 
 type Integer = i64;
-type Floating = f32;
+type Floating = f64;
 type Name = String;
 
 #[derive(Debug, PartialEq)]
@@ -49,6 +50,7 @@ pub(crate) enum Token {
     Subtract,
     Multiply,
     Divide,
+    Imaginary,
     Function,
     Ident(Name),
     Integer(Integer),
@@ -96,6 +98,9 @@ impl Lexer {
         }
 
         match identifier.as_str() {
+            "pi" => Ok(Token::Floating(f64::consts::PI)),
+            "e" => Ok(Token::Floating(f64::consts::E)),
+            "i" => Ok(Token::Imaginary),
             "fn" => Ok(Token::Function),
             _ => Ok(Token::Ident(identifier)),
         }
