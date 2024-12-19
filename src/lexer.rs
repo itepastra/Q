@@ -6,9 +6,7 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
-type Integer = i64;
-type Floating = f64;
-type Name = String;
+use crate::types::{Floating, Integer, Name};
 
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
