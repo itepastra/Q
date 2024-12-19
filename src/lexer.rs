@@ -1,17 +1,29 @@
-use std::{iter::repeat_n, num::ParseIntError};
+use std::{
+    iter::repeat_n,
+    num::{ParseFloatError, ParseIntError},
+};
 
 type Integer = i64;
+type Floating = f32;
 type Name = String;
 
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
     OutOfRangeError,
     ParseIntError,
+    MultipleDotsError,
+    ParseFloatError,
 }
 
 impl From<ParseIntError> for LexerError {
     fn from(_value: ParseIntError) -> Self {
         Self::ParseIntError
+    }
+}
+
+impl From<ParseFloatError> for LexerError {
+    fn from(_value: ParseFloatError) -> Self {
+        Self::ParseFloatError
     }
 }
 
@@ -26,10 +38,11 @@ impl SmartChar for char {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Token {
+pub(crate) enum Token {
     Function,
     Ident(Name),
     Integer(Integer),
+    Floating(Floating),
     Comment(String),
 }
 
@@ -78,16 +91,48 @@ impl Lexer {
         }
     }
 
-    fn parse_integer(&mut self) -> Result<Token, LexerError> {
+    fn parse_number(&mut self) -> Result<Token, LexerError> {
         let mut number = String::new();
-        while self.get_char().is_ok_and(|c| c.is_digit(10))
-            || self.get_char().is_ok_and(|c| c == '-')
-        {
-            number.push(self.get_char()?);
-            self.pos += 1;
+        let mut is_float = false;
+        match self.get_char() {
+            Ok('-') => {
+                number.push('-');
+                self.pos += 1;
+            }
+            Ok('+') => self.pos += 1,
+            Ok(_) => {}
+            Err(_) => todo!(),
         }
 
-        Ok(Token::Integer(number.parse()?))
+        while self.get_char().is_ok_and(|c| "0123456789._".contains(c)) {
+            match self.get_char() {
+                Ok('_') => self.pos += 1,
+                Ok('.') => {
+                    if is_float {
+                        return Err(LexerError::MultipleDotsError);
+                    }
+                    is_float = true;
+                    number.push('.');
+                    self.pos += 1;
+                }
+                Ok(c) => {
+                    number.push(c);
+                    self.pos += 1;
+                }
+                Err(err) => return Err(err.into()),
+            }
+        }
+        if is_float {
+            match number.parse() {
+                Ok(num) => Ok(Token::Floating(num)),
+                Err(err) => Err(err.into()),
+            }
+        } else {
+            match number.parse() {
+                Ok(num) => Ok(Token::Integer(num)),
+                Err(err) => Err(err.into()),
+            }
+        }
     }
 
     fn parse_comment(&mut self) -> Result<Option<Token>, LexerError> {
@@ -147,7 +192,7 @@ impl Lexer {
         // Numbers start with a digit, maybe also with a -
         // TODO: allow numbers to start with + or -, possibly by putting before identifier
         if self.get_char()?.is_digit(10) || self.get_char()? == '-' {
-            return self.parse_integer();
+            return self.parse_number();
         }
 
         todo!()
@@ -159,7 +204,7 @@ mod test {
     use crate::lexer::Token;
     use test_case::test_case;
 
-    use super::Lexer;
+    use super::{Floating, Integer, Lexer};
 
     #[test_case("*", 1; "single star")]
     #[test_case("*********", 9; "many stars")]
@@ -201,14 +246,29 @@ mod test {
     }
 
     #[test_case("29210", 29210, 5; "positive integer")]
+    #[test_case("+29210", 29210, 6; "explicit positive integer")]
     #[test_case("-29210", -29210, 6; "negaive integer")]
     #[test_case("29210 and then some text", 29210, 5; "positive integer with trailing")]
-    fn integer_lexing(input: &'static str, correct: i64, correct_position: usize) {
+    fn integer_lexing(input: &'static str, correct: Integer, correct_position: usize) {
         let mut lexer = Lexer {
             chars: input.chars().collect(),
             pos: 0,
         };
-        assert_eq!(lexer.parse_integer().unwrap(), Token::Integer(correct));
+        assert_eq!(lexer.parse_number().unwrap(), Token::Integer(correct));
+        assert_eq!(lexer.pos, correct_position);
+    }
+
+    #[test_case("29210.3", 29210.3, 7; "positive float")]
+    #[test_case("+29210.3", 29210.3, 8; "explicit positive float")]
+    #[test_case("-29210.3", -29210.3, 8; "negaive float")]
+    #[test_case("29210.3 and then some text", 29210.3, 7; "positive float with trailing")]
+    #[test_case(".33", 0.33, 3; "no leading zero")]
+    fn float_lexing(input: &'static str, correct: Floating, correct_position: usize) {
+        let mut lexer = Lexer {
+            chars: input.chars().collect(),
+            pos: 0,
+        };
+        assert_eq!(lexer.parse_number().unwrap(), Token::Floating(correct));
         assert_eq!(lexer.pos, correct_position);
     }
 
