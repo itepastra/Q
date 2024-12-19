@@ -46,6 +46,7 @@ pub(crate) enum Token {
     CloseBrack,
     OpenParen,
     CloseParen,
+    Equals,
     Add,
     Subtract,
     Multiply,
@@ -92,7 +93,7 @@ impl Lexer {
 
     fn parse_identifier(&mut self) -> Result<Token, LexerError> {
         let mut identifier = String::new();
-        while self.get_char()?.is_alphanumeric() {
+        while self.get_char()?.is_alphanumeric() || "_-".contains(self.get_char()?) {
             identifier.push(self.get_char()?);
             self.pos += 1;
         }
@@ -182,6 +183,7 @@ impl Lexer {
             '}' => Ok(Some(Token::CloseBrace)),
             '[' => Ok(Some(Token::OpenBrack)),
             ']' => Ok(Some(Token::CloseBrack)),
+            '=' => Ok(Some(Token::Equals)),
             '+' => Ok(Some(Token::Add)),
             '-' => Ok(Some(Token::Subtract)),
             '*' => Ok(Some(Token::Multiply)),
@@ -198,10 +200,6 @@ impl Lexer {
             self.pos += 1;
         }
 
-        if let Some(tok) = self.match_single_tokens()? {
-            return Ok(tok);
-        }
-
         // I want // to be a single line comment, and /* */ multiline, with any amount of stars
         if self.get_char()? == '/' {
             match self.parse_comment() {
@@ -209,6 +207,11 @@ impl Lexer {
                 Ok(None) => {}
                 Err(err) => return Err(err),
             }
+        }
+
+        // Now we can check all the single character tokens
+        if let Some(tok) = self.match_single_tokens()? {
+            return Ok(tok);
         }
 
         // If the first character is alphabetic that's an identifier (possibly keyword) start
@@ -228,6 +231,8 @@ impl Lexer {
 
 #[cfg(test)]
 mod test {
+    use core::f64;
+
     use crate::lexer::Token;
     use test_case::test_case;
 
@@ -315,5 +320,72 @@ mod test {
             Some(Token::Comment(correct.to_string()))
         );
         assert_eq!(lexer.pos, correct_position)
+    }
+
+    #[test]
+    fn test_lexer() {
+        let input = r#"
+// this is a comment
+x0 = 1 + i
+x2 = 2+0.1i
+
+/* do hadamard gate or something */
+fn hadamard() {
+    rot_y(pi/2)
+    rot_x(pi)
+}
+"#;
+        let mut lexer = Lexer {
+            chars: input.chars().collect(),
+            pos: 0,
+        };
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Comment("this is a comment".to_string())
+        );
+        assert_eq!(lexer.get_token().unwrap(), Token::Ident("x0".to_string()));
+        assert_eq!(lexer.get_token().unwrap(), Token::Equals);
+        assert_eq!(lexer.get_token().unwrap(), Token::Integer(1));
+        assert_eq!(lexer.get_token().unwrap(), Token::Add);
+        assert_eq!(lexer.get_token().unwrap(), Token::Imaginary);
+        assert_eq!(lexer.get_token().unwrap(), Token::Ident("x2".to_string()));
+        assert_eq!(lexer.get_token().unwrap(), Token::Equals);
+        assert_eq!(lexer.get_token().unwrap(), Token::Integer(2));
+        assert_eq!(lexer.get_token().unwrap(), Token::Add);
+        assert_eq!(lexer.get_token().unwrap(), Token::Floating(0.1));
+        assert_eq!(lexer.get_token().unwrap(), Token::Imaginary);
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Comment("do hadamard gate or something".to_string())
+        );
+        assert_eq!(lexer.get_token().unwrap(), Token::Function);
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Ident("hadamard".to_string())
+        );
+        assert_eq!(lexer.get_token().unwrap(), Token::OpenParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::OpenBrace);
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Ident("rot_y".to_string())
+        );
+        assert_eq!(lexer.get_token().unwrap(), Token::OpenParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::Floating(f64::consts::PI));
+        assert_eq!(lexer.get_token().unwrap(), Token::Divide);
+        assert_eq!(lexer.get_token().unwrap(), Token::Integer(2));
+        assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
+        assert_eq!(
+            lexer.get_token().unwrap(),
+            Token::Ident("rot_x".to_string())
+        );
+        assert_eq!(lexer.get_token().unwrap(), Token::OpenParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::Floating(f64::consts::PI));
+        assert_eq!(lexer.get_token().unwrap(), Token::CloseParen);
+        assert_eq!(lexer.get_token().unwrap(), Token::CloseBrace);
+        assert_eq!(
+            lexer.get_token(),
+            Err(crate::lexer::LexerError::OutOfRangeError)
+        )
     }
 }
