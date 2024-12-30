@@ -1,0 +1,83 @@
+let up = (1,0)
+let down = (0,1)
+let plus = (1,1)
+let minus = (1,-1)
+let plusi = (1,1i)
+let minusi = (1,-1i)
+
+qub alice = up
+qub bob = plus
+qub [charlie,eve] = [up,up] | [down,down]
+
+unit noagate(q1, q2) {
+ H(q2)
+     CNOT(q1, q2)
+      H(q1)
+}
+
+unit H = [[
+   1,1,
+   1,-1,
+]]
+
+let thingy = 3
+
+proc QFT() -> unit(n) {
+        for k in (0..n) {
+
+        }
+	return qs[n] => {
+		for k in (0 .. n) {
+			H(qs[k])
+			for l in (k+1..n) {
+				CZr(pi/2^(l-k))(qs[l],qs[k])
+			}
+		}
+	}
+}
+
+proc cnot() -> unit(2) {
+	return (q0, q1) => {
+		CX(q0, q1)
+	}
+}
+
+proc cnot() -> unit(2) {
+	return qs[2] => {
+		CX(qs[0], qs[1])
+	}
+}
+
+proc rot_y(angle) -> unit(1) {
+	return (q0) => {
+		rot_z(pi/2)(q0)
+		rot_x(angle)(q0)
+		rot_z(-pi/2)(q0)
+	}
+}
+
+
+unit X = [[
+0,1,
+1,0,
+]]
+
+unit CX(control, target) {
+unit_from_matrix([[
+1,0,0,0,
+0,1,0,0,
+0,0,0,1,
+0,0,1,0,
+]])(control, target)
+}
+
+unit makeW(q0, q1, q2) {
+	rot_y(2 * arccos(1/sqrt(3)))(q0)
+	CH(q0, q1)
+	CX(q1, q2)
+	CX(q1, q2)
+	CX(q0, q1)
+	X(q0)
+}
+
+

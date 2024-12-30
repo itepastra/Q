@@ -5,6 +5,8 @@ edition = "2021"
 license = "GPL-3.0"
 
 [dependencies]
+complex = "0.8.0"
+lazy_static = "1.5.0"
 num-complex = "0.4.6"
-test-case = "*"
-tracing = "*"
+pest = "2.7.15"
+pest_derive = "2.7.15"

@@ -1,0 +1,115 @@
+program    = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+)* ~ stmt? ~ EOI }
+WHITESPACE = _{ " " | "\t" }
+
+// I like that this can just be done in 3 line
+COMMENT           = _{ SingleLineComment | MultiLineComment }
+SingleLineComment =  { "//" ~ (!NEWLINE ~ ANY)* }
+MultiLineComment  =  { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+stmt = _{
+    qbitAssignment
+  | variableAssignment
+  | unitary
+  | procedure
+}
+
+ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+var   = @{ ident ~ ("[" ~ mathExpr ~ "]")? }
+ket   =  { "(" ~ ketExpr ~ "," ~ ketExpr ~ ")" }
+
+qbitAssignment       = _{ singleQbitAssignment | multiQbitAssignment }
+singleQbitAssignment =  { "qub" ~ ident ~ "=" ~ (ket | ident) }
+multiQbitState       =  { "[" ~ ((ket | ident) ~ ",") ~ (ket | ident)? ~ "]" }
+multiQbitAssignment  =  {
+    "qub" ~ "[" ~ (ident ~ ",")* ~ ident? ~ "]" ~ "=" ~ (multiQbitState ~ "|")* ~ multiQbitState
+}
+
+variableAssignment = { ketAssignment }
+ketAssignment      = {
+    "let" ~ ident ~ "=" ~ expr
+}
+
+unitary        = _{
+    functionUnitary
+  | matrixUnitary
+}
+unitaryKeyword =  { "unit" }
+matrixRow      =  {
+    (expr ~ ",")*
+}
+matrix         =  {
+    "[[" ~ NEWLINE ~ (matrixRow ~ NEWLINE)+ ~ "]]"
+}
+
+parameters = !{
+    "(" ~ expr? ~ ("," ~ expr)* ~ ","? ~ ")"
+}
+
+matrixUnitary   =  {
+    unitaryKeyword ~ ident ~ "=" ~ matrix
+}
+functionUnitary =  {
+    unitaryKeyword ~ ident ~ parameters ~ functionBlock
+}
+functionCall    = ${
+    ident ~ parameters+
+}
+lambda          =  {
+    (parameters | ident ~ "[" ~ mathExpr ~ "]") ~ "=>" ~ functionBlock
+}
+range           =  { "(" ~ mathExpr ~ ".." ~ mathExpr ~ ")" }
+forLoop         =  {
+    "for" ~ ident ~ "in" ~ range ~ functionBlock
+}
+return          =  {
+    "return" ~ (lambda | expr)
+}
+procstmt        = _{
+    forLoop
+  | functionCall
+  | variableAssignment
+  | return
+}
+
+type             =  { ident ~ ("(" ~ expr ~ ")")? }
+functionBlock    = _{ "{" ~ NEWLINE* ~ (procstmt ~ NEWLINE+)* ~ procstmt? ~ "}" }
+procedureKeyword =  { "proc" }
+procedure        =  {
+    procedureKeyword ~ ident ~ parameters ~ "->" ~ type ~ functionBlock
+}
+
+// parse all types of numbers and their operations
+int = @{ ASCII_DIGIT+ }
+num = @{
+    int ~ ("." ~ ASCII_DIGIT+)?
+  | var // if I want to use a variable instead of a number it goes like this I think
+}
+
+operation = _{ add | subtract | multiply | divide | power | imaginary }
+add       =  { "+" }
+subtract  =  { "-" }
+multiply  =  { "*" }
+divide    =  { "/" }
+power     =  { "^" }
+imaginary =  { "i" }
+pi        =  { "pi" }
+
+prefix = _{
+    subtract
+}
+
+postfix = _{
+    imaginary
+}
+
+primary  = _{ functionCall | "(" ~ mathExpr ~ ")" | pi | imaginary | num }
+term     = _{ prefix? ~ primary ~ postfix? }
+mathExpr = _{ term ~ (operation ~ term)* }
+ketExpr = { mathExpr }
+
+expr = _{
+    mathExpr
+  | ket
+  | matrix
+}
+
