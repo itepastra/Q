@@ -7,6 +7,7 @@ let minusi = (1,-1i)
 
 qub alice = up
 qub bob = plus
+qub wowa = (1,3)
 qub [charlie,eve] = [up,up] | [down,down]
 
 unit noagate(q1, q2) {
@@ -26,34 +27,34 @@ proc QFT() -> unit(n) {
         for k in (0..n) {
 
         }
-	return qs[n] => {
-		for k in (0 .. n) {
-			H(qs[k])
-			for l in (k+1..n) {
-				CZr(pi/2^(l-k))(qs[l],qs[k])
-			}
-		}
-	}
+  return qs[n] => {
+    for k in (0 .. n) {
+      H(qs[k])
+      for l in (k+1..n) {
+        CZr(pi/2^(l-k))(qs[l],qs[k])
+      }
+    }
+  }
 }
 
 proc cnot() -> unit(2) {
-	return (q0, q1) => {
-		CX(q0, q1)
-	}
+  return (q0, q1) => {
+    CX(q0, q1)
+  }
 }
 
 proc cnot() -> unit(2) {
-	return qs[2] => {
-		CX(qs[0], qs[1])
-	}
+  return qs[2] => {
+    CX(qs[0], qs[1])
+  }
 }
 
 proc rot_y(angle) -> unit(1) {
-	return (q0) => {
-		rot_z(pi/2)(q0)
-		rot_x(angle)(q0)
-		rot_z(-pi/2)(q0)
-	}
+  return (q0) => {
+    rot_z(pi/2)(q0)
+    rot_x(angle)(q0)
+    rot_z(-pi/2)(q0)
+  }
 }
 
 
@@ -72,12 +73,12 @@ unit_from_matrix([[
 }
 
 unit makeW(q0, q1, q2) {
-	rot_y(2 * arccos(1/sqrt(3)))(q0)
-	CH(q0, q1)
-	CX(q1, q2)
-	CX(q1, q2)
-	CX(q0, q1)
-	X(q0)
+  rot_y(2 * arccos(1/sqrt(3)))(q0)
+  CH(q0, q1)
+  CX(q1, q2)
+  CX(q1, q2)
+  CX(q0, q1)
+  X(q0)
 }
 
 
