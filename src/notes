@@ -8,7 +8,7 @@ let minusi = (1,-1i)
 qub alice = up
 qub bob = plus
 qub wowa = (1,3)
-qub [charlie,eve] = [up,up] | [down,down]
+// qub [charlie,eve] = [up,up] | [down,down]
 
 unit noagate(q1, q2) {
  H(q2)

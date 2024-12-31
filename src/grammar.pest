@@ -17,12 +17,8 @@ ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 var   = @{ ident ~ ("[" ~ mathExpr ~ "]")? }
 ket   =  { "(" ~ ketExpr ~ "," ~ ketExpr ~ ")" }
 
-qbitAssignment       = _{ singleQbitAssignment | multiQbitAssignment }
+qbitAssignment       = _{ singleQbitAssignment }
 singleQbitAssignment =  { "qub" ~ ident ~ "=" ~ (ket | ident) }
-multiQbitState       =  { "[" ~ ((ket | ident) ~ ",") ~ (ket | ident)? ~ "]" }
-multiQbitAssignment  =  {
-    "qub" ~ "[" ~ (ident ~ ",")* ~ ident? ~ "]" ~ "=" ~ (multiQbitState ~ "|")* ~ multiQbitState
-}
 
 variableAssignment = { ketAssignment }
 ketAssignment      = {
