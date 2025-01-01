@@ -57,13 +57,13 @@ impl Program {
                 let w0 = parse_expr(
                     parts
                         .next()
-                        .expect("ket has expression on the left")
+                        .expect("ket should have an expression on the left")
                         .into_inner(),
                 );
                 let w1 = parse_expr(
                     parts
                         .next()
-                        .expect("ket has expression on the right")
+                        .expect("ket should have an expression on the right")
                         .into_inner(),
                 );
                 Ok(Value::Ket(vec![w0, w1]))
