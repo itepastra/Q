@@ -127,8 +127,6 @@ impl Program {
 }
 
 fn main() {
-    println!("Hello, world!");
-
     let mut file = String::new();
     match stdin().lock().read_to_string(&mut file) {
         Ok(len) => eprintln!("read input with length {len}"),
