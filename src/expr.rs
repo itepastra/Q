@@ -18,12 +18,11 @@ lazy_static::lazy_static! {
         .op(Op::infix(multiply, Left) | Op::infix(divide, Left))
         .op(Op::infix(power, Right))
         .op(Op::postfix(imaginary))
-        .op(Op::prefix(subtract))
+        .op(Op::prefix(negate))
     };
 }
 
 pub fn parse_expr(pairs: Pairs<Rule>) -> Expr<Complex64, String> {
-    eprintln!("pairs are: {pairs:#?}");
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
             Rule::num => Expr::Res(Complex::new(primary.as_str().parse().unwrap(), 0.0)),
@@ -49,7 +48,7 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Expr<Complex64, String> {
             rule => unreachable!("Expr::parse expected primary, found {rule:?}"),
         })
         .map_prefix(|op, rhs| match op.as_rule() {
-            Rule::subtract => -rhs,
+            Rule::negate => -rhs,
             rule => unreachable!("Expr::parse expected prefix, found {rule:?}"),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
@@ -143,7 +142,7 @@ impl<T: Sub<Output = T>, U> Sub<Expr<T, U>> for Expr<T, U> {
 
     fn sub(self, rhs: Expr<T, U>) -> Self::Output {
         match (self, rhs) {
-            (Expr::Res(s), Expr::Res(r)) => Expr::Res(r - s),
+            (Expr::Res(s), Expr::Res(r)) => Expr::Res(s - r),
             (l, r) => Expr::DualOp(l.into(), DualOp::Sub, r.into()),
         }
     }

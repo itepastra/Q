@@ -1,10 +1,13 @@
 mod expr;
+mod matrix;
+
 use std::{
     collections::HashMap,
     io::{stdin, Read},
 };
 
 use expr::{parse_expr, Expr};
+use matrix::Matrix;
 use num_complex::Complex64;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
@@ -19,13 +22,13 @@ type Ident = String;
 #[derive(Debug)]
 enum ParserError {}
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Value {
     Expression(Expr<Complex64, String>),
     Ket(Vec<Expr<Complex64, String>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Variable {
     value: Value,
 }
@@ -33,8 +36,11 @@ struct Variable {
 #[derive(Debug)]
 struct Procedure {}
 
-#[derive(Debug)]
-struct Unitary {}
+#[derive(Debug, Default)]
+struct Unitary {
+    parameters: Vec<Ident>,
+    steps: Vec<(Unitary, Vec<usize>)>,
+}
 
 #[derive(Debug)]
 struct Qubit {
@@ -69,23 +75,76 @@ impl Program {
         &self,
         pairs: &mut Pairs<Rule>,
     ) -> Result<(Ident, Variable), ParserError> {
-        let name = pairs.next().expect("assignment should have an identifier");
-        let value = pairs.next().expect("assignment should have a value");
+        let p = pairs.clone();
+        let name = pairs
+            .next()
+            .expect(&format!("assignment should have an identifier, ({p:#?})"))
+            .as_str()
+            .to_string();
+        let value = pairs
+            .next()
+            .expect(&format!("assignment should have an identifier, ({p:#?})"));
         match value.as_rule() {
             Rule::ketValue => {
                 let ket = self.parse_ket(value.into_inner().next().expect("ketValue has ket"))?;
-                Ok((name.to_string(), Variable { value: ket }))
+                Ok((name, Variable { value: ket }))
             }
             Rule::singleValue => {
                 let value = parse_expr(value.into_inner());
                 Ok((
-                    name.to_string(),
+                    name,
                     Variable {
                         value: Value::Expression(value),
                     },
                 ))
             }
             rule => unreachable!("expected a variable assignment, found {rule:#?}"),
+        }
+    }
+
+    fn parse_matrix(
+        &self,
+        rows: Pairs<Rule>,
+    ) -> Result<Matrix<Expr<Complex64, String>>, ParserError> {
+        let mat = matrix::Matrix::from_iters(
+            rows.map(|r| r.into_inner().map(|item| parse_expr(item.into_inner()))),
+        );
+        Ok(mat)
+    }
+
+    fn parse_unitary(&self, pair: Pair<Rule>) -> Result<(Ident, Unitary), ParserError> {
+        match pair.as_rule() {
+            Rule::functionUnitary => {
+                let mut parts = pair.into_inner();
+                let name = parts.next().expect("unitary does not have a name");
+                let mut unit = Unitary::default();
+                let mut parameters = parts
+                    .next()
+                    .expect("unitary does not have parameters")
+                    .into_inner();
+                while let Some(param) = parameters.next() {
+                    println!("unitary has parameter: {}", param.as_str());
+                    unit.parameters.push(param.as_str().to_string());
+                }
+
+                while let Some(stmt) = parts.next() {
+                    // TODO: parse statements for thingy
+                }
+                Ok((name.to_string(), unit))
+            }
+            Rule::matrixUnitary => {
+                let mut parts = pair.into_inner();
+                let name = parts.next().expect("matrix unitary does not have a name");
+                let matrix = self.parse_matrix(
+                    parts
+                        .next()
+                        .expect("matrix unitary has a matrix")
+                        .into_inner(),
+                );
+                // TODO: decompose matrix to unitary
+                Ok((name.to_string(), Unitary::default()))
+            }
+            rule => unreachable!("expected a unitary, found {rule:#?}"),
         }
     }
 
@@ -121,6 +180,10 @@ impl Program {
                         .expect("qubit assignment not correct");
                     self.qubits.insert(name, val);
                 }
+                Rule::functionUnitary | Rule::matrixUnitary => {
+                    let (name, unitary) = self.parse_unitary(pair).expect("unitary not valid");
+                    self.unitaries.insert(name, unitary);
+                }
                 rule => unreachable!("expected a statement, found {rule:#?}"),
             }
         }
@@ -152,7 +215,7 @@ mod test {
     use num_complex::{Complex, Complex64};
     use pest::Parser;
 
-    use crate::{parse_expr, Expr, QParser, Rule};
+    use crate::{parse_expr, Expr, Ident, Program, QParser, Rule, Value, Variable};
 
     fn test_frame_expr(input: &str, correct: Expr<Complex64, String>) {
         let pairs = QParser::parse(Rule::expr, input).unwrap();
@@ -189,6 +252,37 @@ mod test {
     fn test_math_parser_sqrt() {
         test_frame_expr("sqrt(2)", Expr::Res(Complex::new(f64::consts::SQRT_2, 0.0)));
     }
+
+    fn test_frame_assignment(input: &str, name: &str, correct: Value) {
+        let mut pairs = QParser::parse(Rule::variableAssignment, input)
+            .unwrap()
+            .next()
+            .unwrap()
+            .into_inner();
+        let program = Program::default();
+        let (n, v) = program.parse_variable_assignment(&mut pairs).unwrap();
+        assert_eq!(v, Variable { value: correct });
+        assert_eq!(n, name.to_string());
+    }
+
+    #[test]
+    fn test_assignment_ket() {
+        test_frame_assignment(
+            "let wowa = (13,53 - 69)",
+            "wowa",
+            Value::Ket(vec![
+                Expr::Res(Complex::new(13.0, 0.0)),
+                Expr::Res(Complex::new(53.0 - 69.0, 0.0)),
+            ]),
+        );
+    }
+
+    #[test]
+    fn test_assignment_number() {
+        test_frame_assignment(
+            "let br3e = 29 * 33 - 19i",
+            "br3e",
+            Value::Expression(Expr::Res(Complex::new(29.0 * 33.0, -19.0))),
         );
     }
 }
