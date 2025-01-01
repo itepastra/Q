@@ -37,6 +37,10 @@ matrix         =  {
     "[[" ~ NEWLINE ~ (matrixRow ~ NEWLINE)+ ~ "]]"
 }
 
+paramDefs = !{
+	"(" ~ ident? ~ ("," ~ ident)* ~ ","? ~ ")"
+}
+
 parameters = !{
     "(" ~ expr? ~ ("," ~ expr)* ~ ","? ~ ")"
 }
@@ -45,7 +49,7 @@ matrixUnitary   =  {
     unitaryKeyword ~ ident ~ "=" ~ matrix
 }
 functionUnitary =  {
-    unitaryKeyword ~ ident ~ parameters ~ functionBlock
+    unitaryKeyword ~ ident ~ paramDefs ~ functionBlock
 }
 functionCall    = ${
     ident ~ parameters+
