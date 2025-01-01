@@ -20,10 +20,11 @@ ket   =  { "(" ~ ketExpr ~ "," ~ ketExpr ~ ")" }
 qbitAssignment       = _{ singleQbitAssignment }
 singleQbitAssignment =  { "qub" ~ ident ~ "=" ~ (ket | ident) }
 
-variableAssignment = { ketAssignment }
-ketAssignment      = {
-    "let" ~ ident ~ "=" ~ expr
-}
+variableAssignment = { "let" ~ ident ~ "=" ~ assignmentValue }
+
+assignmentValue = _{ singleValue | ketValue }
+singleValue = { mathExpr }
+ketValue = { expr }
 
 unitary        = _{
     functionUnitary

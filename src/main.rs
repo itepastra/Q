@@ -51,37 +51,41 @@ struct Program {
 
 impl Program {
     fn parse_ket(&self, pair: Pair<Rule>) -> Result<Value, ParserError> {
-        match pair.as_rule() {
-            Rule::ket => {
-                let mut parts = pair.into_inner();
-                let w0 = parse_expr(
-                    parts
-                        .next()
-                        .expect("ket should have an expression on the left")
-                        .into_inner(),
-                );
-                let w1 = parse_expr(
-                    parts
-                        .next()
-                        .expect("ket should have an expression on the right")
-                        .into_inner(),
-                );
-                Ok(Value::Ket(vec![w0, w1]))
-            }
-            rule => unreachable!("expected a ket, found {rule:#?}"),
-        }
+        let mut pairs = pair.into_inner();
+        println!("ket pairs are {pairs:#?}");
+        let p0 = pairs
+            .next()
+            .expect("ket should have an expression on the left")
+            .into_inner();
+        let p1 = pairs
+            .next()
+            .expect("ket should have an expression on the left")
+            .into_inner();
+        let w0 = parse_expr(p0);
+        let w1 = parse_expr(p1);
+        Ok(Value::Ket(vec![w0, w1]))
     }
 
     fn parse_variable_assignment(
         &self,
-        pair: Pair<Rule>,
+        pairs: &mut Pairs<Rule>,
     ) -> Result<(Ident, Variable), ParserError> {
-        match pair.as_rule() {
-            Rule::ketAssignment => {
-                let mut parts = pair.clone().into_inner();
-                let name = parts.next().expect("assignment has identifier");
-                let ket = self.parse_ket(parts.next().expect("ket assignment has a ket"))?;
+        println!("variable assignment for pair {pairs:#?}");
+        let name = pairs.next().expect("assignment should have an identifier");
+        let value = pairs.next().expect("assignment should have a value");
+        match value.as_rule() {
+            Rule::ketValue => {
+                let ket = self.parse_ket(value.into_inner().next().expect("ketValue has ket"))?;
                 Ok((name.to_string(), Variable { value: ket }))
+            }
+            Rule::singleValue => {
+                let value = parse_expr(value.into_inner());
+                Ok((
+                    name.to_string(),
+                    Variable {
+                        value: Value::Expression(value),
+                    },
+                ))
             }
             rule => unreachable!("expected a variable assignment, found {rule:#?}"),
         }
@@ -109,12 +113,11 @@ impl Program {
             match pair.as_rule() {
                 Rule::variableAssignment => {
                     let (name, val) = self
-                        .parse_variable_assignment(pair.into_inner().next().unwrap())
+                        .parse_variable_assignment(&mut pair.into_inner())
                         .expect("variable assignment not correct");
                     self.variables.insert(name, val);
                 }
                 Rule::singleQbitAssignment => {
-                    println!("{pair:#?}");
                     let (name, val) = self
                         .parse_single_qubit(pair)
                         .expect("qubit assignment not correct");
