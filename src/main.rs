@@ -52,7 +52,6 @@ struct Program {
 impl Program {
     fn parse_ket(&self, pair: Pair<Rule>) -> Result<Value, ParserError> {
         let mut pairs = pair.into_inner();
-        println!("ket pairs are {pairs:#?}");
         let p0 = pairs
             .next()
             .expect("ket should have an expression on the left")
@@ -70,7 +69,6 @@ impl Program {
         &self,
         pairs: &mut Pairs<Rule>,
     ) -> Result<(Ident, Variable), ParserError> {
-        println!("variable assignment for pair {pairs:#?}");
         let name = pairs.next().expect("assignment should have an identifier");
         let value = pairs.next().expect("assignment should have a value");
         match value.as_rule() {
