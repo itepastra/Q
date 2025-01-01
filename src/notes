@@ -11,9 +11,9 @@ qub wowa = (1,3)
 // qub [charlie,eve] = [up,up] | [down,down]
 
 unit noagate(q1, q2) {
- H(q2)
-     CNOT(q1, q2)
-      H(q1)
+  H(q2)
+  CNOT(q1, q2)
+  H(q1)
 }
 
 unit H = [[
