@@ -29,7 +29,7 @@ unitary        = _{
     functionUnitary
   | matrixUnitary
 }
-unitaryKeyword =  { "unit" }
+unitaryKeyword =  _{ "unit" }
 matrixRow      =  {
     (expr ~ ",")*
 }
