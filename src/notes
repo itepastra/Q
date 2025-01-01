@@ -24,9 +24,6 @@ unit H = [[
 let thingy = 3
 
 proc QFT() -> unit(n) {
-        for k in (0..n) {
-
-        }
   return qs[n] => {
     for k in (0 .. n) {
       H(qs[k])
