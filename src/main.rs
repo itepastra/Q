@@ -19,8 +19,11 @@ struct QParser;
 
 type Ident = String;
 
-#[derive(Debug)]
-enum ParserError {}
+#[derive(Debug, PartialEq)]
+enum ParserError {
+    MalformedMatrix,
+    EmptyMatrix,
+}
 
 #[derive(Debug, PartialEq)]
 enum Value {
@@ -100,16 +103,6 @@ impl Program {
             }
             rule => unreachable!("expected a variable assignment, found {rule:#?}"),
         }
-    }
-
-    fn parse_matrix(
-        &self,
-        rows: Pairs<Rule>,
-    ) -> Result<Matrix<Expr<Complex64, String>>, ParserError> {
-        let mat = matrix::Matrix::from_iters(
-            rows.map(|r| r.into_inner().map(|item| parse_expr(item.into_inner()))),
-        );
-        Ok(mat)
     }
 
     fn parse_unitary(&self, pair: Pair<Rule>) -> Result<(Ident, Unitary), ParserError> {
