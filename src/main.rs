@@ -31,18 +31,24 @@ enum Value {
     Ket(Vec<Expr<Complex64, String>>),
 }
 
+#[derive(Debug)]
+enum Unit {
+    Matrix(Matrix<Expr<Complex64, String>>),
+    Procedured(Procedure),
+    Unitary(Unitary),
+}
+
 #[derive(Debug, PartialEq)]
 struct Variable {
     value: Value,
 }
 
-#[derive(Debug)]
-struct Procedure {}
+type Procedure = Program;
 
 #[derive(Debug, Default)]
 struct Unitary {
     parameters: Vec<Ident>,
-    steps: Vec<(Unitary, Vec<usize>)>,
+    steps: Vec<(Unit, Vec<usize>)>,
 }
 
 #[derive(Debug)]
@@ -208,7 +214,7 @@ mod test {
     use num_complex::{Complex, Complex64};
     use pest::Parser;
 
-    use crate::{parse_expr, Expr, Ident, Program, QParser, Rule, Value, Variable};
+    use crate::{parse_expr, Expr, Program, QParser, Rule, Value, Variable};
 
     fn test_frame_expr(input: &str, correct: Expr<Complex64, String>) {
         let pairs = QParser::parse(Rule::expr, input).unwrap();
