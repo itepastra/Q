@@ -1,4 +1,5 @@
 mod expr;
+mod ket;
 mod matrix;
 
 use std::{
@@ -65,21 +66,6 @@ struct Program {
 }
 
 impl Program {
-    fn parse_ket(&self, pair: Pair<Rule>) -> Result<Value, ParserError> {
-        let mut pairs = pair.into_inner();
-        let p0 = pairs
-            .next()
-            .expect("ket should have an expression on the left")
-            .into_inner();
-        let p1 = pairs
-            .next()
-            .expect("ket should have an expression on the left")
-            .into_inner();
-        let w0 = parse_expr(p0);
-        let w1 = parse_expr(p1);
-        Ok(Value::Ket(vec![w0, w1]))
-    }
-
     fn parse_variable_assignment(
         &self,
         pairs: &mut Pairs<Rule>,
