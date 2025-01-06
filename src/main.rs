@@ -1,5 +1,6 @@
 mod expr;
 mod matrix;
+mod procedure;
 
 use std::{
     collections::HashMap,
@@ -22,32 +23,35 @@ type Ident = String;
 #[derive(Debug)]
 enum ParserError {}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Value {
     Expression(Expr<Complex64, String>),
     Ket(Vec<Expr<Complex64, String>>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Variable {
     value: Value,
 }
 
-#[derive(Debug)]
-struct Procedure {}
+#[derive(Debug, Clone)]
+struct Procedure {
+    parameters: Vec<Ident>,
+    program: Program,
+}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Unitary {
     parameters: Vec<Ident>,
     steps: Vec<(Unitary, Vec<usize>)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Qubit {
     value: Value,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Program {
     variables: HashMap<Ident, Variable>,
     procedures: HashMap<Ident, Procedure>,
@@ -117,15 +121,16 @@ impl Program {
             Rule::functionUnitary => {
                 let mut parts = pair.into_inner();
                 let name = parts.next().expect("unitary does not have a name");
-                let mut unit = Unitary::default();
-                let mut parameters = parts
+                let parameters = parts
                     .next()
                     .expect("unitary does not have parameters")
-                    .into_inner();
-                while let Some(param) = parameters.next() {
-                    println!("unitary has parameter: {}", param.as_str());
-                    unit.parameters.push(param.as_str().to_string());
-                }
+                    .into_inner()
+                    .map(|param| param.as_str().to_string())
+                    .collect();
+                let mut unit = Unitary {
+                    parameters,
+                    steps: Vec::new(),
+                };
 
                 while let Some(stmt) = parts.next() {
                     // TODO: parse statements for thingy
@@ -183,6 +188,11 @@ impl Program {
                 Rule::functionUnitary | Rule::matrixUnitary => {
                     let (name, unitary) = self.parse_unitary(pair).expect("unitary not valid");
                     self.unitaries.insert(name, unitary);
+                }
+                Rule::procedure => {
+                    let (name, procedure) =
+                        self.parse_procedure(pair).expect("procedure not valid");
+                    self.procedures.insert(name, procedure);
                 }
                 rule => unreachable!("expected a statement, found {rule:#?}"),
             }
