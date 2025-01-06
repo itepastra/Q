@@ -23,6 +23,10 @@ unit H = [[
 
 let thingy = 3
 
+proc square(number) -> num {
+  return number*number
+}
+
 proc QFT() -> unit(n) {
   return qs[n] => {
     for k in (0 .. n) {

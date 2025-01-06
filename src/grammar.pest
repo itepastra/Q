@@ -78,8 +78,8 @@ procstmt        = _{
 }
 
 type             =  { ident ~ ("(" ~ expr ~ ")")? }
-functionBlock    = _{ "{" ~ NEWLINE* ~ (procstmt ~ NEWLINE+)* ~ procstmt? ~ "}" }
-procedureKeyword =  { "proc" }
+functionBlock    =  { "{" ~ NEWLINE* ~ (procstmt ~ NEWLINE+)* ~ procstmt? ~ "}" }
+procedureKeyword =  _{ "proc" }
 procedure        =  {
     procedureKeyword ~ ident ~ parameters ~ "->" ~ type ~ functionBlock
 }
