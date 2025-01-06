@@ -22,6 +22,21 @@ lazy_static::lazy_static! {
     };
 }
 
+fn builtin<T: ComplexFloat, U: Clone>(
+    func: String,
+    params: Vec<Expr<T, U>>,
+) -> Result<Option<Expr<T, U>>, ParserError> {
+    match func.as_str() {
+        "sqrt" => {
+            if params.len() != 1 {
+                return Err(ParserError::InvalidParameterLength);
+            }
+            Ok(Some(Expr::sqrt(params[0].clone())))
+        }
+        _ => Ok(None),
+    }
+}
+
 pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr<Complex64, String>, ParserError> {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
@@ -34,35 +49,44 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr<Complex64, String>, ParserE
             Rule::expr => parse_expr(primary.into_inner()),
             Rule::functionCall => {
                 let mut pairs = primary.into_inner();
-                let name = pairs.next().expect("function has a name").as_str();
-                let params: Vec<_> = pairs
-                    .next()
-                    .into_iter()
-                    .map(|pair| parse_expr(pair.into_inner()))
-                    .collect();
-                match name {
-                    // builtin math functions
-                    "sqrt" => {
-                        assert!(params.len() == 1, "sqrt takes 1 argument");
-                        Ok(params[0].clone()?.sqrt())
+                let name = pairs.next().expect("function should have a name").as_str();
+
+                let mut params_vec: Vec<Vec<_>> = Vec::new();
+                while let Some(parameters) = pairs.next() {
+                    let param_pairs = parameters.into_inner();
+                    let params: Vec<_> = param_pairs
+                        .map(|param| parse_expr(param.into_inner()))
+                        .collect();
+                    if params.iter().any(|p| p.is_err()) {
+                        todo!("return error when param errors")
                     }
-                    name => {
-                        for param in params.iter() {
-                            if let Err(_) = param {
-                                return param.clone();
+                    params_vec.push(params.into_iter().map(|param| param.unwrap()).collect());
+                }
+
+                let mut last = None;
+                for pv in params_vec {
+                    println!("pv is {pv:#?}");
+                    match last {
+                        None => {
+                            let params = pv.iter().map(|param| param.clone()).collect();
+                            if let Some(builtin) = builtin(name.to_string(), params)? {
+                                return Ok(builtin);
                             }
+                            last = Some(Expr::IFunc(
+                                name.to_string(),
+                                pv.iter().map(|param| param.clone()).collect(),
+                            ))
                         }
-                        Ok(Expr::Func(
-                            name.to_string(),
-                            params
-                                .iter()
-                                .map(|param| {
-                                    param.clone().expect("should have been checked before here")
-                                })
-                                .collect(),
-                        ))
+                        Some(l) => {
+                            last = Some(Expr::RFunc(
+                                l.into(),
+                                pv.iter().map(|param| param.clone()).collect(),
+                            ))
+                        }
                     }
                 }
+
+                Ok(last.expect("function can not exist without at least 1 set of parameters"))
             }
             rule => unreachable!("Expr::parse expected primary, found {rule:?}"),
         })
@@ -110,7 +134,8 @@ enum DualOp {
 pub(crate) enum Expr<T, U> {
     Res(T),
     Var(U),
-    Func(String, Vec<Expr<T, U>>),
+    IFunc(String, Vec<Expr<T, U>>),
+    RFunc(Box<Expr<T, U>>, Vec<Expr<T, U>>),
     SingleOp(SingleOp, Box<Expr<T, U>>),
     DualOp(Box<Expr<T, U>>, DualOp, Box<Expr<T, U>>),
 }
@@ -216,37 +241,37 @@ mod test {
     }
 
     #[test]
-    fn test_parser_add() {
+    fn parser_add() {
         test_frame_expr("5+3", Expr::Res(8.0.into()));
     }
 
     #[test]
-    fn test_parser_multiply() {
+    fn parser_multiply() {
         test_frame_expr("5*3", Expr::Res(15.0.into()));
     }
 
     #[test]
-    fn test_parser_negate() {
+    fn parser_negate() {
         test_frame_expr("4 * -3", Expr::Res((-12.0).into()));
     }
 
     #[test]
-    fn test_parser_subtract() {
+    fn parser_subtract() {
         test_frame_expr("4-3", Expr::Res(1.0.into()));
     }
 
     #[test]
-    fn test_parser_pi() {
+    fn parser_pi() {
         test_frame_expr("pi", Expr::Res(f64::consts::PI.into()));
     }
 
     #[test]
-    fn test_parser_sqrt() {
+    fn parser_sqrt() {
         test_frame_expr("sqrt(2)", Expr::Res(f64::consts::SQRT_2.into()));
     }
 
     #[test]
-    fn test_parser_variable() {
+    fn parser_variable() {
         test_frame_expr(
             "number / 3",
             Expr::DualOp(
@@ -258,11 +283,11 @@ mod test {
     }
 
     #[test]
-    fn test_parser_function() {
+    fn parser_function() {
         test_frame_expr(
             "some_function() + 1i",
             Expr::DualOp(
-                Expr::Func("some_function".to_string(), vec![]).into(),
+                Expr::IFunc("some_function".to_string(), vec![]).into(),
                 super::DualOp::Add,
                 Expr::Res(IMAGINARY).into(),
             ),
@@ -270,13 +295,43 @@ mod test {
     }
 
     #[test]
-    fn test_parser_function_with_param() {
+    fn parser_function_with_param() {
         test_frame_expr(
             "some_function(3*4) + 1i",
             Expr::DualOp(
-                Expr::Func("some_function".to_string(), vec![Expr::Res(12.0.into())]).into(),
+                Expr::IFunc("some_function".to_string(), vec![Expr::Res(12.0.into())]).into(),
                 super::DualOp::Add,
                 Expr::Res(IMAGINARY).into(),
+            ),
+        );
+    }
+
+    #[test]
+    fn parser_function_with_params() {
+        test_frame_expr(
+            "some_function(param1, 2*3, param3)",
+            Expr::IFunc(
+                "some_function".to_string(),
+                vec![
+                    Expr::Var("param1".to_string()),
+                    Expr::Res(6.0.into()),
+                    Expr::Var("param3".to_string()),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn parser_double_function() {
+        test_frame_expr(
+            "some_meta_function(3)(2.5*3)",
+            Expr::RFunc(
+                Expr::IFunc(
+                    "some_meta_function".to_string(),
+                    vec![Expr::Res(3.0.into())],
+                )
+                .into(),
+                vec![Expr::Res(7.5.into())],
             ),
         );
     }

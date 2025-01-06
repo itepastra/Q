@@ -27,8 +27,14 @@ proc square(number) -> num {
   return number*number
 }
 
+proc some_function(a, b) -> proc {
+	return (c) => {
+		return (a*c)/b
+	}
+}
+
 proc QFT() -> unit(n) {
-  return qs[n] => {
+  return qs[n] -> {
     for k in (0 .. n) {
       H(qs[k])
       for l in (k+1..n) {
@@ -39,19 +45,19 @@ proc QFT() -> unit(n) {
 }
 
 proc cnot() -> unit(2) {
-  return (q0, q1) => {
+  return (q0, q1) -> {
     CX(q0, q1)
   }
 }
 
 proc cnot() -> unit(2) {
-  return qs[2] => {
+  return qs[2] -> {
     CX(qs[0], qs[1])
   }
 }
 
 proc rot_y(angle) -> unit(1) {
-  return (q0) => {
+  return (q0) -> {
     rot_z(pi/2)(q0)
     rot_x(angle)(q0)
     rot_z(-pi/2)(q0)

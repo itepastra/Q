@@ -46,9 +46,11 @@ matrix         =  {
 paramDefs = !{
 	"(" ~ ident? ~ ("," ~ ident)* ~ ","? ~ ")"
 }
-
+parameter = {
+  expr
+}
 parameters = !{
-    "(" ~ expr? ~ ("," ~ expr)* ~ ","? ~ ")"
+    "(" ~ parameter? ~ ("," ~ parameter)* ~ ","? ~ ")"
 }
 
 matrixUnitary   =  {
@@ -60,16 +62,25 @@ functionUnitary =  {
 functionCall    = ${
     ident ~ parameters+
 }
-lambda = { 
-  (parameters | ident ~ "[" ~ mathExpr ~ "]") ~ "=>" ~ functionBlock
+
+lambdaList = {
+	ident ~ "[" ~ mathExpr ~ "]"
 }
+
+plambda = { 
+  (parameters | lambdaList) ~ "=>" ~ functionBlock
+}
+ulambda = {
+  (parameters | lambdaList) ~ "->" ~ functionBlock
+}
+
 range           =  { "(" ~ mathExpr ~ ".." ~ mathExpr ~ ")" }
 forLoop         =  {
     "for" ~ ident ~ "in" ~ range ~ functionBlock
 }
 returnExpr = { expr }
 return          =  {
-    "return" ~ (lambda | returnExpr)
+    "return" ~ (plambda | ulambda | returnExpr)
 }
 procstmt        = _{
     forLoop

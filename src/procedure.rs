@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use pest::iterators::{Pair, Pairs};
 
-use crate::{Ident, ParserError, Procedure, Program, Rule};
+use crate::{parameters::parse_parameters, Ident, ParserError, Procedure, Program, Rule};
 
 impl Program {
     pub(crate) fn parse_procedure(
@@ -14,12 +14,7 @@ impl Program {
             .next()
             .expect("procedure should have a name")
             .to_string();
-        let parameters = pairs
-            .next()
-            .expect("procedure should have a parameter block")
-            .into_inner()
-            .map(|param| param.as_str().to_string())
-            .collect();
+        let parameters = parse_parameters(&mut pairs)?;
         let typ = pairs.next().expect("procedure should have a return type");
         let body = pairs.next().expect("procedure should have a body");
 

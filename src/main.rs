@@ -1,6 +1,8 @@
 mod expr;
 mod ket;
+mod lambda;
 mod matrix;
+mod parameters;
 mod procedure;
 
 use std::{
@@ -23,8 +25,9 @@ type Ident = String;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum ParserError {
-    MalformedMatrix,
     EmptyMatrix,
+    InvalidParameterLength,
+    MalformedMatrix,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -171,6 +174,14 @@ impl Program {
                 let expr = parse_expr(pair.into_inner())?;
                 Ok(ReturnStmt::Expression(Value::Expression(expr)))
             }
+            Rule::ulambda => {
+                let lambda = self.parse_unit_lambda(pair)?;
+                Ok(ReturnStmt::UnitaryLambda(lambda))
+            }
+            Rule::plambda => {
+                let lambda = self.parse_proc_lambda(pair)?;
+                Ok(ReturnStmt::ProcedureLambda(lambda.into()))
+            }
             rule => unreachable!("expected a valid return value, found {rule:#?}"),
         }
     }
@@ -229,7 +240,7 @@ fn main() {
             program.parse(pairs);
             println!("parsed: {:#?}", program)
         }
-        Err(_) => todo!(),
+        Err(err) => todo!("error was {err:#?}"),
     }
 }
 
