@@ -25,7 +25,11 @@ lazy_static::lazy_static! {
 pub fn parse_expr(pairs: Pairs<Rule>) -> Expr<Complex64, String> {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
-            Rule::num => Expr::Res(Complex::new(primary.as_str().parse().unwrap(), 0.0)),
+            Rule::num => Expr::Res(Complex::new(
+                primary.as_str().parse().expect("primary num should parse"),
+                0.0,
+            )),
+            Rule::var => Expr::Var(primary.as_str().to_string()),
             Rule::pi => Expr::Res(Complex::new(f64::consts::PI, 0.0)),
             Rule::expr => parse_expr(primary.into_inner()),
             Rule::functionCall => {
