@@ -235,48 +235,10 @@ fn main() {
 
 #[cfg(test)]
 mod test {
-    use core::f64;
-
-    use num_complex::{Complex, Complex64};
+    use num_complex::Complex;
     use pest::Parser;
 
-    use crate::{parse_expr, Expr, Program, QParser, Rule, Value, Variable};
-
-    fn test_frame_expr(input: &str, correct: Expr<Complex64, String>) {
-        let pairs = QParser::parse(Rule::expr, input).unwrap();
-        println!("pairs: {pairs:#?}");
-        assert_eq!(parse_expr(pairs), correct)
-    }
-
-    #[test]
-    fn test_math_parser_add() {
-        test_frame_expr("5+3", Expr::Res(Complex::new(8.0, 0.0)));
-    }
-
-    #[test]
-    fn test_math_parser_multiply() {
-        test_frame_expr("5*3", Expr::Res(Complex::new(15.0, 0.0)));
-    }
-
-    #[test]
-    fn test_math_parser_negate() {
-        test_frame_expr("4 * -3", Expr::Res(Complex::new(-12.0, 0.0)));
-    }
-
-    #[test]
-    fn test_math_parser_subtract() {
-        test_frame_expr("4-3", Expr::Res(Complex::new(1.0, 0.0)));
-    }
-
-    #[test]
-    fn test_math_parser_pi() {
-        test_frame_expr("pi", Expr::Res(Complex::new(f64::consts::PI, 0.0)));
-    }
-
-    #[test]
-    fn test_math_parser_sqrt() {
-        test_frame_expr("sqrt(2)", Expr::Res(Complex::new(f64::consts::SQRT_2, 0.0)));
-    }
+    use crate::{Expr, Program, QParser, Rule, Value, Variable};
 
     fn test_frame_assignment(input: &str, name: &str, correct: Value) {
         let mut pairs = QParser::parse(Rule::variableAssignment, input)

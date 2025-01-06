@@ -173,3 +173,91 @@ impl<T: Neg<Output = T>, U> Neg for Expr<T, U> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use num_complex::Complex64;
+    use pest::Parser;
+
+    use crate::{
+        expr::{parse_expr, Complex},
+        QParser, Rule,
+    };
+    use std::f64;
+
+    use super::Expr;
+
+    const IMAGINARY: Complex64 = Complex::new(0.0, 1.0);
+
+    fn test_frame_expr(input: &str, correct: Expr<Complex64, String>) {
+        let pairs = QParser::parse(Rule::expr, input).unwrap();
+        println!("pairs: {pairs:#?}");
+        assert_eq!(parse_expr(pairs), correct)
+    }
+
+    #[test]
+    fn test_parser_add() {
+        test_frame_expr("5+3", Expr::Res(8.0.into()));
+    }
+
+    #[test]
+    fn test_parser_multiply() {
+        test_frame_expr("5*3", Expr::Res(15.0.into()));
+    }
+
+    #[test]
+    fn test_parser_negate() {
+        test_frame_expr("4 * -3", Expr::Res((-12.0).into()));
+    }
+
+    #[test]
+    fn test_parser_subtract() {
+        test_frame_expr("4-3", Expr::Res(1.0.into()));
+    }
+
+    #[test]
+    fn test_parser_pi() {
+        test_frame_expr("pi", Expr::Res(f64::consts::PI.into()));
+    }
+
+    #[test]
+    fn test_parser_sqrt() {
+        test_frame_expr("sqrt(2)", Expr::Res(f64::consts::SQRT_2.into()));
+    }
+
+    #[test]
+    fn test_parser_variable() {
+        test_frame_expr(
+            "number / 3",
+            Expr::DualOp(
+                Expr::Var("number".to_string()).into(),
+                super::DualOp::Div,
+                Expr::Res(3.0.into()).into(),
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parser_function() {
+        test_frame_expr(
+            "some_function() + 1i",
+            Expr::DualOp(
+                Expr::Func("some_function".to_string(), vec![]).into(),
+                super::DualOp::Add,
+                Expr::Res(IMAGINARY).into(),
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parser_function_with_param() {
+        test_frame_expr(
+            "some_function(3*4) + 1i",
+            Expr::DualOp(
+                Expr::Func("some_function".to_string(), vec![Expr::Res(12.0.into())]).into(),
+                super::DualOp::Add,
+                Expr::Res(IMAGINARY).into(),
+            ),
+        );
+    }
+}
