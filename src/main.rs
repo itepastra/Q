@@ -34,6 +34,14 @@ enum Value {
 }
 
 #[derive(Debug, Clone)]
+enum ReturnStmt {
+    Expression(Value),
+    UnitaryLambda(Unitary),
+    ProcedureLambda(Box<Procedure>), // I won't allow assigning these to variables tho, otherwise we get
+                                     // js
+}
+
+#[derive(Debug, Clone)]
 enum Unit {
     Matrix(Matrix<Expr<Complex64, String>>),
     Procedured(Procedure),
@@ -68,6 +76,7 @@ struct Program {
     procedures: HashMap<Ident, Procedure>,
     unitaries: HashMap<Ident, Unitary>,
     qubits: HashMap<Ident, Qubit>,
+    ret: Option<ReturnStmt>,
 }
 
 impl Program {
@@ -132,7 +141,7 @@ impl Program {
                         .expect("matrix unitary has a matrix")
                         .into_inner(),
                 );
-                // TODO: decompose matrix to unitary
+                // TODO: decompose matrix to unitaries
                 Ok((name.to_string(), Unitary::default()))
             }
             rule => unreachable!("expected a unitary, found {rule:#?}"),
@@ -153,6 +162,16 @@ impl Program {
                 Ok((name.to_string(), Qubit { value: val }))
             }
             rule => unreachable!("expected a qubit assignment, found {rule:#?}"),
+        }
+    }
+
+    fn parse_return(&mut self, pair: Pair<Rule>) -> Result<ReturnStmt, ParserError> {
+        match pair.as_rule() {
+            Rule::returnExpr => {
+                let expr = parse_expr(pair.into_inner());
+                Ok(ReturnStmt::Expression(Value::Expression(expr)))
+            }
+            rule => unreachable!("expected a valid return value, found {rule:#?}"),
         }
     }
 
@@ -179,6 +198,16 @@ impl Program {
                     let (name, procedure) =
                         self.parse_procedure(pair).expect("procedure not valid");
                     self.procedures.insert(name, procedure);
+                }
+                Rule::r#return => {
+                    let ret = self
+                        .parse_return(
+                            pair.into_inner()
+                                .next()
+                                .expect("return statement should have a body"),
+                        )
+                        .expect("return statement not valid");
+                    self.ret = Some(ret);
                 }
                 rule => unreachable!("expected a statement, found {rule:#?}"),
             }

@@ -26,12 +26,12 @@ impl Program {
         let mut program = Program::default();
         program.parse(body.clone().into_inner());
 
-        todo!("the body pairs are {body:#?}");
+        println!("program is {program:#?}");
         Ok((
             name,
             Procedure {
                 parameters,
-                program: todo!(),
+                program,
             },
         ))
     }

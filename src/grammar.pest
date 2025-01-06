@@ -60,15 +60,16 @@ functionUnitary =  {
 functionCall    = ${
     ident ~ parameters+
 }
-lambda          =  {
-    (parameters | ident ~ "[" ~ mathExpr ~ "]") ~ "=>" ~ functionBlock
+lambda = { 
+  (parameters | ident ~ "[" ~ mathExpr ~ "]") ~ "=>" ~ functionBlock
 }
 range           =  { "(" ~ mathExpr ~ ".." ~ mathExpr ~ ")" }
 forLoop         =  {
     "for" ~ ident ~ "in" ~ range ~ functionBlock
 }
+returnExpr = { expr }
 return          =  {
-    "return" ~ (lambda | expr)
+    "return" ~ (lambda | returnExpr)
 }
 procstmt        = _{
     forLoop
