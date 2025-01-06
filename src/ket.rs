@@ -13,8 +13,8 @@ impl Program {
             .next()
             .expect("ket should have an expression on the left")
             .into_inner();
-        let w0 = parse_expr(p0);
-        let w1 = parse_expr(p1);
+        let w0 = parse_expr(p0)?;
+        let w1 = parse_expr(p1)?;
         Ok(Value::Ket(vec![w0, w1]))
     }
 }

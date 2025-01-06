@@ -6,7 +6,7 @@ use std::{
 use num_complex::{Complex, Complex64, ComplexFloat};
 use pest::{iterators::Pairs, pratt_parser::PrattParser};
 
-use crate::Rule;
+use crate::{ParserError, Rule};
 
 lazy_static::lazy_static! {
     static ref PRATT_PARSER: PrattParser<Rule> = {
@@ -22,15 +22,15 @@ lazy_static::lazy_static! {
     };
 }
 
-pub fn parse_expr(pairs: Pairs<Rule>) -> Expr<Complex64, String> {
+pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr<Complex64, String>, ParserError> {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
-            Rule::num => Expr::Res(Complex::new(
+            Rule::num => Ok(Expr::Res(Complex::new(
                 primary.as_str().parse().expect("primary num should parse"),
                 0.0,
-            )),
-            Rule::var => Expr::Var(primary.as_str().to_string()),
-            Rule::pi => Expr::Res(Complex::new(f64::consts::PI, 0.0)),
+            ))),
+            Rule::var => Ok(Expr::Var(primary.as_str().to_string())),
+            Rule::pi => Ok(Expr::Res(Complex::new(f64::consts::PI, 0.0))),
             Rule::expr => parse_expr(primary.into_inner()),
             Rule::functionCall => {
                 let mut pairs = primary.into_inner();
@@ -44,28 +44,48 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Expr<Complex64, String> {
                     // builtin math functions
                     "sqrt" => {
                         assert!(params.len() == 1, "sqrt takes 1 argument");
-                        params[0].clone().sqrt()
+                        Ok(params[0].clone()?.sqrt())
                     }
-                    name => Expr::Func(name.to_string(), params),
+                    name => {
+                        for param in params.iter() {
+                            if let Err(_) = param {
+                                return param.clone();
+                            }
+                        }
+                        Ok(Expr::Func(
+                            name.to_string(),
+                            params
+                                .iter()
+                                .map(|param| {
+                                    param.clone().expect("should have been checked before here")
+                                })
+                                .collect(),
+                        ))
+                    }
                 }
             }
             rule => unreachable!("Expr::parse expected primary, found {rule:?}"),
         })
         .map_prefix(|op, rhs| match op.as_rule() {
-            Rule::negate => -rhs,
+            Rule::negate => Ok(-(rhs?)),
             rule => unreachable!("Expr::parse expected prefix, found {rule:?}"),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
-            Rule::imaginary => lhs * Complex::new(0.0, 1.0).into(),
+            Rule::imaginary => Ok(lhs? * Complex::new(0.0, 1.0).into()),
             rule => unreachable!("Expr::parse expected postfix, found {rule:?}"),
         })
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::add => lhs + rhs,
-            Rule::subtract => lhs - rhs,
-            Rule::multiply => lhs * rhs,
-            Rule::divide => lhs / rhs,
-            Rule::power => lhs.powc(rhs),
-            rule => unreachable!("Expr::parse expected infix, found {rule:?}"),
+        .map_infix(|lhs, op, rhs| {
+            let lhs = lhs?;
+            let rhs = rhs?;
+            let res = match op.as_rule() {
+                Rule::add => lhs + rhs,
+                Rule::subtract => lhs - rhs,
+                Rule::multiply => lhs * rhs,
+                Rule::divide => lhs / rhs,
+                Rule::power => lhs.powc(rhs),
+                rule => unreachable!("Expr::parse expected infix, found {rule:?}"),
+            };
+            Ok(res)
         })
         .parse(pairs)
 }
@@ -192,7 +212,7 @@ mod test {
     fn test_frame_expr(input: &str, correct: Expr<Complex64, String>) {
         let pairs = QParser::parse(Rule::expr, input).unwrap();
         println!("pairs: {pairs:#?}");
-        assert_eq!(parse_expr(pairs), correct)
+        assert_eq!(parse_expr(pairs).unwrap(), correct)
     }
 
     #[test]

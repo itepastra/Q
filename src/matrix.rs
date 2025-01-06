@@ -33,7 +33,11 @@ impl Program {
         let mat = DMatrix::from_row_iterator(
             rows.clone().count(),
             column_count,
-            rows.flat_map(|row| row.into_inner().map(|item| parse_expr(item.into_inner()))),
+            rows.flat_map(|row| {
+                row.into_inner().map(|item| {
+                    parse_expr(item.into_inner()).expect("expression in matrix should be valid")
+                })
+            }),
         );
 
         Ok(mat)

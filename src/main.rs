@@ -21,7 +21,7 @@ struct QParser;
 
 type Ident = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum ParserError {
     MalformedMatrix,
     EmptyMatrix,
@@ -99,7 +99,7 @@ impl Program {
                 Ok((name, Variable { value: ket }))
             }
             Rule::singleValue => {
-                let value = parse_expr(value.into_inner());
+                let value = parse_expr(value.into_inner())?;
                 Ok((
                     name,
                     Variable {
@@ -168,7 +168,7 @@ impl Program {
     fn parse_return(&mut self, pair: Pair<Rule>) -> Result<ReturnStmt, ParserError> {
         match pair.as_rule() {
             Rule::returnExpr => {
-                let expr = parse_expr(pair.into_inner());
+                let expr = parse_expr(pair.into_inner())?;
                 Ok(ReturnStmt::Expression(Value::Expression(expr)))
             }
             rule => unreachable!("expected a valid return value, found {rule:#?}"),
