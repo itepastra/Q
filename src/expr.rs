@@ -75,7 +75,6 @@ pub fn parse_expr(pairs: &mut Pairs<Rule>) -> Result<Expression, ParserError> {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum SingleOp {
-    Imaginary,
     Negate,
     Sqrt,
 }
@@ -184,10 +183,7 @@ mod test {
     use num_complex::Complex64;
     use pest::Parser;
 
-    use crate::{
-        expr::{parse_expr, Complex},
-        QParser, Rule,
-    };
+    use crate::{expr::parse_expr, QParser, Rule};
     use std::f64;
 
     use super::{DualOp, Expr};

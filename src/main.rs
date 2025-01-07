@@ -14,7 +14,6 @@ use std::{
 };
 
 use expr::{parse_expr, Expr, Expression};
-use num_complex::Complex64;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
@@ -175,7 +174,7 @@ impl Program {
                     .expect("matrix unitary does not have a name")
                     .as_str()
                     .to_string();
-                let matrix = self.parse_matrix(
+                let _matrix = self.parse_matrix(
                     parts
                         .next()
                         .expect("matrix unitary has a matrix")

@@ -4,7 +4,7 @@ use crate::{
     expr::{Expr, Expression},
     function::parse_function_call,
     r#for::parse_for_loop,
-    Param, Parameters, ParserError, Rule, Unit, Unitary, UnitaryBody, UnitaryBodyStmt, UnitaryStmt,
+    ParserError, Rule, UnitaryBody, UnitaryBodyStmt, UnitaryStmt,
 };
 
 pub(crate) fn parse_unitary_body(pairs: &mut Pairs<Rule>) -> Result<UnitaryBody, ParserError> {
@@ -52,8 +52,8 @@ mod test {
     use pest::Parser;
 
     use crate::{
-        expr::Expr, r#for::Loop, unitary::parse_unitary_statement, Program, QParser, Rule,
-        UnitaryBodyStmt, UnitaryStmt,
+        expr::Expr, r#for::Loop, unitary::parse_unitary_statement, QParser, Rule, UnitaryBodyStmt,
+        UnitaryStmt,
     };
 
     #[test]
