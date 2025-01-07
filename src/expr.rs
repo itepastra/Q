@@ -77,6 +77,7 @@ pub fn parse_expr(pairs: &mut Pairs<Rule>) -> Result<Expression, ParserError> {
 pub(crate) enum SingleOp {
     Negate,
     Sqrt,
+    NormSquared,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -113,6 +114,13 @@ impl<U> Expr<Complex64, U> {
         match (self, rhs) {
             (Expr::Res(s), Expr::Res(r)) => s.powc(r).into(),
             (l, r) => Expr::DualOp(l.into(), DualOp::Pow, r.into()),
+        }
+    }
+
+    pub(crate) fn norm_sqr(self) -> Expr<Complex64, U> {
+        match self {
+            Expr::Res(s) => Expr::Res(s.norm_sqr().into()),
+            other => Expr::SingleOp(SingleOp::NormSquared, other.into()),
         }
     }
 }
