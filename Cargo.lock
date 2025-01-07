@@ -39,12 +39,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "complex"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c44398b2bcc1ba55a1d25a759562cf135356fa05330d0d93f9609c7e8266ac"
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,7 +71,6 @@ dependencies = [
 name = "funq"
 version = "0.1.0"
 dependencies = [
- "complex",
  "lazy_static",
  "nalgebra",
  "num-complex",
