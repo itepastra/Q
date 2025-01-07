@@ -282,7 +282,7 @@ fn main() {
             program.parse(pairs);
             println!("parsed: {:#?}", program)
         }
-        Err(err) => todo!("error was {err:#?}"),
+        Err(err) => todo!("parsing threw an error, namely {err:#?}"),
     }
 }
 
