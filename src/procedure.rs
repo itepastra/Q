@@ -13,15 +13,15 @@ impl Program {
         let name = pairs
             .next()
             .expect("procedure should have a name")
+            .as_str()
             .to_string();
         let parameters = parse_parameters(&mut pairs)?;
         let typ = pairs.next().expect("procedure should have a return type");
         let body = pairs.next().expect("procedure should have a body");
 
         let mut program = Program::default();
-        program.parse(body.clone().into_inner());
+        program.parse(body.into_inner());
 
-        println!("program is {program:#?}");
         Ok((
             name,
             Procedure {

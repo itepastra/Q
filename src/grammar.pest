@@ -67,6 +67,10 @@ lambdaList = {
 	ident ~ "[" ~ mathExpr ~ "]"
 }
 
+listIndex = {
+	ident ~ "[" ~ mathExpr ~ "]"
+}
+
 plambda = { 
   (parameters | lambdaList) ~ "=>" ~ functionBlock
 }
@@ -74,7 +78,9 @@ ulambda = {
   (parameters | lambdaList) ~ "->" ~ functionBlock
 }
 
-range           =  { "(" ~ mathExpr ~ ".." ~ mathExpr ~ ")" }
+lower = { mathExpr }
+upper = { mathExpr }
+range           =  { "(" ~ lower ~ ".." ~ upper ~ ")" }
 forLoop         =  {
     "for" ~ ident ~ "in" ~ range ~ functionBlock
 }
@@ -120,7 +126,7 @@ postfix = _{
     imaginary
 }
 
-primary  = _{ functionCall | "(" ~ mathExpr ~ ")" | pi | imaginary | num | var }
+primary  = _{ functionCall | "(" ~ mathExpr ~ ")" | listIndex | pi | imaginary | num | var }
 term     = _{ prefix? ~ primary ~ postfix? }
 mathExpr = _{ term ~ (operation ~ term)* }
 ketExpr = { mathExpr }

@@ -1,9 +1,8 @@
 use nalgebra::{DMatrix, Dyn, OMatrix};
-use num_complex::Complex64;
 use pest::iterators::Pairs;
 
 use crate::{
-    expr::{parse_expr, Expr},
+    expr::{parse_expr, Expression},
     ParserError, Program, Rule,
 };
 
@@ -13,7 +12,7 @@ impl Program {
     pub(crate) fn parse_matrix(
         &self,
         rows: Pairs<Rule>,
-    ) -> Result<Matrix<Expr<Complex64, String>>, ParserError> {
+    ) -> Result<Matrix<Expression>, ParserError> {
         let lengths = rows.clone().fold(None, |size, row| match size {
             None => Some(Ok(row.into_inner().count())),
             Some(Ok(count)) => {
@@ -35,7 +34,8 @@ impl Program {
             column_count,
             rows.flat_map(|row| {
                 row.into_inner().map(|item| {
-                    parse_expr(item.into_inner()).expect("expression in matrix should be valid")
+                    parse_expr(&mut item.into_inner())
+                        .expect("expression in matrix should be valid")
                 })
             }),
         );

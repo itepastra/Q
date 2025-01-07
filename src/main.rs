@@ -1,27 +1,44 @@
 mod expr;
+mod r#for;
+mod function;
 mod ket;
 mod lambda;
 mod matrix;
 mod parameters;
 mod procedure;
+mod unitary;
 
 use std::{
     collections::HashMap,
     io::{stdin, Read},
 };
 
-use expr::{parse_expr, Expr};
-use matrix::Matrix;
+use expr::{parse_expr, Expr, Expression};
 use num_complex::Complex64;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
+use r#for::Loop;
+use unitary::parse_unitary_body;
 
 #[derive(Parser)]
 #[grammar = "src/grammar.pest"]
 struct QParser;
 
 type Ident = String;
+type Parameters = Vec<Param>;
+
+#[derive(Debug, Clone, PartialEq)]
+enum Param {
+    Ident(Ident),
+    Arr(Arr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct Arr {
+    name: Ident,
+    len: Expression,
+}
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum ParserError {
@@ -32,11 +49,11 @@ enum ParserError {
 
 #[derive(Debug, PartialEq, Clone)]
 enum Value {
-    Expression(Expr<Complex64, String>),
-    Ket(Vec<Expr<Complex64, String>>),
+    Expression(Expression),
+    Ket(Vec<Expression>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum ReturnStmt {
     Expression(Value),
     UnitaryLambda(Unitary),
@@ -44,36 +61,46 @@ enum ReturnStmt {
                                      // js
 }
 
-#[derive(Debug, Clone)]
-enum Unit {
-    Matrix(Matrix<Expr<Complex64, String>>),
-    Procedured(Procedure),
-    Unitary(Unitary),
-}
+type Unit = Ident;
 
 #[derive(Debug, PartialEq, Clone)]
 struct Variable {
     value: Value,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Procedure {
-    parameters: Vec<Ident>,
+    parameters: Parameters,
     program: Program,
 }
 
-#[derive(Debug, Default, Clone)]
-struct Unitary {
-    parameters: Vec<Ident>,
-    steps: Vec<(Unit, Vec<usize>)>,
+type UnitaryBody = Vec<UnitaryBodyStmt>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum UnitaryBodyStmt {
+    ForLoop(Loop),
+    Stmt(UnitaryStmt),
+    Rec(Box<UnitaryBodyStmt>, Vec<Expression>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+struct UnitaryStmt {
+    unit: Unit,
+    qbits: Vec<Expression>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+struct Unitary {
+    parameters: Parameters,
+    steps: UnitaryBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct Qubit {
     value: Value,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 struct Program {
     variables: HashMap<Ident, Variable>,
     procedures: HashMap<Ident, Procedure>,
@@ -102,7 +129,7 @@ impl Program {
                 Ok((name, Variable { value: ket }))
             }
             Rule::singleValue => {
-                let value = parse_expr(value.into_inner())?;
+                let value = parse_expr(&mut value.into_inner())?;
                 Ok((
                     name,
                     Variable {
@@ -118,26 +145,36 @@ impl Program {
         match pair.as_rule() {
             Rule::functionUnitary => {
                 let mut parts = pair.into_inner();
-                let name = parts.next().expect("unitary does not have a name");
+                let name = parts
+                    .next()
+                    .expect("unitary does not have a name")
+                    .as_str()
+                    .to_string();
                 let parameters = parts
                     .next()
                     .expect("unitary does not have parameters")
                     .into_inner()
-                    .map(|param| param.as_str().to_string())
+                    .map(|param| Param::Ident(param.as_str().to_string()))
                     .collect();
-                let mut unit = Unitary {
+                let unit = Unitary {
                     parameters,
-                    steps: Vec::new(),
+                    steps: parse_unitary_body(
+                        &mut parts
+                            .next()
+                            .expect("unitary should have a body")
+                            .into_inner(),
+                    )?,
                 };
 
-                while let Some(stmt) = parts.next() {
-                    // TODO: parse statements for thingy
-                }
-                Ok((name.to_string(), unit))
+                Ok((name, unit))
             }
             Rule::matrixUnitary => {
                 let mut parts = pair.into_inner();
-                let name = parts.next().expect("matrix unitary does not have a name");
+                let name = parts
+                    .next()
+                    .expect("matrix unitary does not have a name")
+                    .as_str()
+                    .to_string();
                 let matrix = self.parse_matrix(
                     parts
                         .next()
@@ -145,7 +182,7 @@ impl Program {
                         .into_inner(),
                 );
                 // TODO: decompose matrix to unitaries
-                Ok((name.to_string(), Unitary::default()))
+                Ok((name, Unitary::default()))
             }
             rule => unreachable!("expected a unitary, found {rule:#?}"),
         }
@@ -155,14 +192,18 @@ impl Program {
         match pair.as_rule() {
             Rule::singleQbitAssignment => {
                 let mut parts = pair.clone().into_inner();
-                let name = parts.next().expect("assignment has identifier");
+                let name = parts
+                    .next()
+                    .expect("assignment has identifier")
+                    .as_str()
+                    .to_string();
                 let value = parts.next().expect("assignment has value");
                 let val = match value.as_rule() {
                     Rule::ket => self.parse_ket(value)?,
                     Rule::ident => Value::Expression(Expr::Var(name.to_string())),
                     rule => unreachable!("expected a qubit initialisation value, found {rule:#?}"),
                 };
-                Ok((name.to_string(), Qubit { value: val }))
+                Ok((name, Qubit { value: val }))
             }
             rule => unreachable!("expected a qubit assignment, found {rule:#?}"),
         }
@@ -171,7 +212,7 @@ impl Program {
     fn parse_return(&mut self, pair: Pair<Rule>) -> Result<ReturnStmt, ParserError> {
         match pair.as_rule() {
             Rule::returnExpr => {
-                let expr = parse_expr(pair.into_inner())?;
+                let expr = parse_expr(&mut pair.into_inner())?;
                 Ok(ReturnStmt::Expression(Value::Expression(expr)))
             }
             Rule::ulambda => {
@@ -220,6 +261,7 @@ impl Program {
                         .expect("return statement not valid");
                     self.ret = Some(ret);
                 }
+                Rule::EOI => return,
                 rule => unreachable!("expected a statement, found {rule:#?}"),
             }
         }
