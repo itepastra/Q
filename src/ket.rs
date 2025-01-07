@@ -83,4 +83,15 @@ mod test {
             },
         );
     }
+
+    #[test]
+    fn if_ket_gets_normalized_3() {
+        test_frame_ket(
+            "(1,-1)",
+            Ket {
+                zero: Expr::Res(0.7071067811865475.into()),
+                one: Expr::Res((-0.7071067811865475).into()),
+            },
+        );
+    }
 }
