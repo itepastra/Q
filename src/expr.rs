@@ -180,7 +180,7 @@ impl<T: Div<Output = T>, U> Div<Expr<T, U>> for Expr<T, U> {
 
     fn div(self, rhs: Expr<T, U>) -> Self::Output {
         match (self, rhs) {
-            (Expr::Res(s), Expr::Res(r)) => Expr::Res(r / s),
+            (Expr::Res(s), Expr::Res(r)) => Expr::Res(s / r),
             (l, r) => Expr::DualOp(l.into(), DualOp::Div, r.into()),
         }
     }
@@ -253,6 +253,11 @@ mod test {
     #[test]
     fn parser_negate() {
         test_frame_expr("4 * -3", Expr::Res((-12.0).into()));
+    }
+
+    #[test]
+    fn parser_divide() {
+        test_frame_expr("3/4", Expr::Res((0.75).into()));
     }
 
     #[test]
