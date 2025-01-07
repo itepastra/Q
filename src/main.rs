@@ -14,6 +14,7 @@ use std::{
 };
 
 use expr::{parse_expr, Expr, Expression};
+use ket::{parse_ket, Ket};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
@@ -49,7 +50,7 @@ enum ParserError {
 #[derive(Debug, PartialEq, Clone)]
 enum Value {
     Expression(Expression),
-    Ket(Vec<Expression>),
+    Ket(Ket<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -124,7 +125,7 @@ impl Program {
             .expect(&format!("assignment should have an identifier, ({p:#?})"));
         match value.as_rule() {
             Rule::ketValue => {
-                let ket = self.parse_ket(value.into_inner().next().expect("ketValue has ket"))?;
+                let ket = parse_ket(value.into_inner().next().expect("ketValue has ket"))?;
                 Ok((name, Variable { value: ket }))
             }
             Rule::singleValue => {
@@ -198,7 +199,7 @@ impl Program {
                     .to_string();
                 let value = parts.next().expect("assignment has value");
                 let val = match value.as_rule() {
-                    Rule::ket => self.parse_ket(value)?,
+                    Rule::ket => parse_ket(value)?,
                     Rule::ident => Value::Expression(Expr::Var(name.to_string())),
                     rule => unreachable!("expected a qubit initialisation value, found {rule:#?}"),
                 };
@@ -290,7 +291,7 @@ mod test {
     use num_complex::Complex;
     use pest::Parser;
 
-    use crate::{Expr, Program, QParser, Rule, Value, Variable};
+    use crate::{ket::Ket, Expr, Program, QParser, Rule, Value, Variable};
 
     fn test_frame_assignment(input: &str, name: &str, correct: Value) {
         let mut pairs = QParser::parse(Rule::variableAssignment, input)
@@ -309,10 +310,10 @@ mod test {
         test_frame_assignment(
             "let wowa = (13,53 - 69)",
             "wowa",
-            Value::Ket(vec![
-                Expr::Res(Complex::new(13.0, 0.0)),
-                Expr::Res(Complex::new(53.0 - 69.0, 0.0)),
-            ]),
+            Value::Ket(Ket {
+                zero: Expr::Res(Complex::new(0.6305926250944657, 0.0)),
+                one: Expr::Res(Complex::new(-0.7761140001162654, 0.0)),
+            }),
         );
     }
 
