@@ -1,9 +1,6 @@
 use pest::iterators::Pair;
 
-use crate::{
-    expr::{parse_expr, Expr, Expression},
-    ParserError, Program, Rule, Value,
-};
+use crate::{expr::parse_expr, ParserError, Rule, Value};
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Ket<T> {
@@ -38,9 +35,12 @@ pub(crate) fn parse_ket(pair: Pair<Rule>) -> Result<Value, ParserError> {
 mod test {
     use pest::Parser;
 
-    use crate::{expr::Expr, ket, QParser, Rule, Value};
+    use crate::{
+        expr::{Expr, Expression},
+        ket, QParser, Rule, Value,
+    };
 
-    use super::{Expression, Ket};
+    use super::Ket;
 
     fn test_frame_ket(input: &str, correct: Ket<Expression>) {
         let mut pairs = QParser::parse(Rule::ket, input).unwrap();
