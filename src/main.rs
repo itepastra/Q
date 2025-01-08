@@ -28,6 +28,9 @@ struct QParser;
 type Ident = String;
 type Parameters = Vec<Param>;
 
+#[derive(Debug, PartialEq)]
+struct QuantumProgram {}
+
 #[derive(Debug, Clone, PartialEq)]
 enum Param {
     Ident(Ident),
@@ -45,6 +48,16 @@ enum ParserError {
     EmptyMatrix,
     InvalidParameterLength,
     MalformedMatrix,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum MetaProgramError {
+    NoReturnStatement,
+    LambdaReturnNotAllowed,
+    KetReturnNotAllowed,
+    VariableNotFound,
+    KetInExpressionNotAllowed,
+    QubitNonKetAssignment,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -200,7 +213,7 @@ impl Program {
                 let value = parts.next().expect("assignment has value");
                 let val = match value.as_rule() {
                     Rule::ket => parse_ket(value)?,
-                    Rule::ident => Value::Expression(Expr::Var(name.to_string())),
+                    Rule::ident => Value::Expression(Expr::Var(value.as_str().to_string())),
                     rule => unreachable!("expected a qubit initialisation value, found {rule:#?}"),
                 };
                 Ok((name, Qubit { value: val }))
@@ -266,6 +279,39 @@ impl Program {
             }
         }
     }
+
+    fn run_metaprogram(&mut self) -> Result<QuantumProgram, MetaProgramError> {
+        if let Some(ref mut ret) = &mut self.ret {
+            // The return can either be an expression that returns a unitary OR
+            // an expression that returns a number...., I can't know which one yet
+            match ret {
+                ReturnStmt::Expression(value) => match value {
+                    Value::Expression(ref expr) => {
+                        let new = expr.simplify(
+                            &self.variables,
+                            &self.qubits,
+                            &self.procedures,
+                            &self.unitaries,
+                        );
+                        todo!("simplified expression from {expr:#?} to {new:#?}")
+                    }
+                    // Maybe I do want to allow this at some point in the future,
+                    // returning kets from procedures or something but not yet
+                    Value::Ket(ket) => Err(MetaProgramError::KetReturnNotAllowed),
+                },
+                ReturnStmt::UnitaryLambda(_unitary) => {
+                    todo!("allow returning lambda's (from procedures)");
+                }
+                ReturnStmt::ProcedureLambda(_procedure) => {
+                    todo!("allow returning lambda's (from procedures)");
+                }
+            }
+        } else {
+            // the top level program needs to return something, so I know where to start
+            // looking, I find it funnier than having a main function
+            Err(MetaProgramError::NoReturnStatement)
+        }
+    }
 }
 
 fn main() {
@@ -284,6 +330,10 @@ fn main() {
         }
         Err(err) => todo!("parsing threw an error, namely {err:#?}"),
     }
+
+    let qprogram = program.run_metaprogram();
+
+    println!("{qprogram:#?}")
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     f64,
     ops::{Add, Div, Mul, Neg, Sub},
 };
@@ -6,7 +7,10 @@ use std::{
 use num_complex::{Complex, Complex64, ComplexFloat};
 use pest::{iterators::Pairs, pratt_parser::PrattParser};
 
-use crate::{function::parse_function_call, Ident, ParserError, Rule};
+use crate::{
+    function::parse_function_call, ket::Ket, Ident, MetaProgramError, ParserError, Procedure,
+    Program, Qubit, Rule, Unitary, Value, Variable,
+};
 
 pub(crate) type Expression = Expr<Complex64, Ident>;
 
@@ -22,6 +26,125 @@ lazy_static::lazy_static! {
         .op(Op::postfix(imaginary))
         .op(Op::prefix(negate))
     };
+}
+
+impl Expression {
+    pub(crate) fn simplify(
+        &self,
+        variables: &HashMap<Ident, Variable>,
+        qubits: &HashMap<Ident, Qubit>,
+        procedures: &HashMap<Ident, Procedure>,
+        unitaries: &HashMap<Ident, Unitary>,
+    ) -> Result<Self, MetaProgramError> {
+        println!("simplifying expression {self:#?}");
+        match self {
+            Expr::Index(_, expr) => expr.simplify(variables, qubits, procedures, unitaries),
+            Expr::IFunc(ident, vec) => {
+                let params: Vec<_> = vec
+                    .into_iter()
+                    .map(|ele| ele.simplify(variables, qubits, procedures, unitaries))
+                    .collect::<Result<Vec<_>, _>>()?;
+                if let Some(unit) = unitaries.get(ident) {
+                    todo!("calculate unitary function {unit:#?}, we have params {params:#?}")
+                } else if let Some(proc) = procedures.get(ident) {
+                    todo!("calculate procedure {proc:#?}, we have params {params:#?}")
+                } else {
+                    Ok(Expr::IFunc(ident.to_string(), params))
+                }
+            }
+            Expr::RFunc(expr, vec) => Ok(Expr::RFunc(
+                expr.simplify(variables, qubits, procedures, unitaries)?
+                    .into(),
+                vec.into_iter()
+                    .map(|ele| ele.simplify(variables, qubits, procedures, unitaries))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Expr::SingleOp(single_op, expr) => {
+                let simple = expr.simplify(variables, qubits, procedures, unitaries)?;
+                if let Expr::Res(res) = simple {
+                    Ok(Expr::Res(match single_op {
+                        SingleOp::Negate => -res,
+                        SingleOp::Sqrt => res.sqrt(),
+                        SingleOp::NormSquared => res.norm_sqr().into(),
+                    }))
+                } else {
+                    Ok(Expr::SingleOp(*single_op, simple.into()))
+                }
+            }
+            Expr::DualOp(expr, dual_op, expr1) => {
+                let simplel = expr.simplify(variables, qubits, procedures, unitaries)?;
+                let simpler = expr1.simplify(variables, qubits, procedures, unitaries)?;
+                if let (Expr::Res(lhs), Expr::Res(rhs)) = (simplel.clone(), simpler.clone()) {
+                    Ok(Expr::Res(match dual_op {
+                        DualOp::Add => lhs + rhs,
+                        DualOp::Sub => lhs - rhs,
+                        DualOp::Mul => lhs * rhs,
+                        DualOp::Div => lhs / rhs,
+                        DualOp::Pow => lhs.powc(rhs),
+                    }))
+                } else {
+                    Ok(Expr::DualOp(simplel.into(), *dual_op, simpler.into()))
+                }
+            }
+            Expr::Var(name) => {
+                if let Some(Variable { value }) = variables.get(name) {
+                    match value {
+                        crate::Value::Expression(expr) => {
+                            expr.simplify(variables, qubits, procedures, unitaries)
+                        }
+                        crate::Value::Ket(ket) => Expr::Ket(ket.clone().into())
+                            .simplify(variables, qubits, procedures, unitaries),
+                    }
+                } else if let Some(qub) = qubits.get(name) {
+                    println!("found {name} at {qub:#?}");
+                    Expr::Qub(name.to_string(), qub.clone().into())
+                        .simplify(variables, qubits, procedures, unitaries)
+                } else {
+                    Err(MetaProgramError::VariableNotFound)
+                }
+            }
+            Expr::Res(val) => Ok(Expr::Res(*val)),
+            Expr::Unitary(unit) => Ok(Expr::Unitary(unit.clone())),
+            Expr::Qub(name, qub) => {
+                let Qubit { value } = *qub.clone();
+                let inner = match value {
+                    Value::Expression(expr) => {
+                        if let Expr::Ket(ket) =
+                            expr.simplify(variables, qubits, procedures, unitaries)?
+                        {
+                            Ok(*ket)
+                        } else {
+                            Err(MetaProgramError::QubitNonKetAssignment)
+                        }
+                    }
+                    Value::Ket(ket) => Ok(Ket {
+                        zero: ket
+                            .zero
+                            .simplify(variables, qubits, procedures, unitaries)?,
+                        one: ket.one.simplify(variables, qubits, procedures, unitaries)?,
+                    }),
+                }?;
+                Ok(Expr::Qub(
+                    name.to_string(),
+                    Qubit {
+                        value: Value::Expression(inner),
+                    }
+                    .into(),
+                ))
+            }
+            Expr::Ket(ket) => {
+                let Ket { zero, one } = *ket.clone();
+                Ok(Expr::Ket(
+                    Ket {
+                        zero: zero.simplify(variables, qubits, procedures, unitaries)?,
+                        one: one.simplify(variables, qubits, procedures, unitaries)?,
+                    }
+                    .into(),
+                )
+                .into())
+            }
+        }
+    }
 }
 
 pub fn parse_expr(pairs: &mut Pairs<Rule>) -> Result<Expression, ParserError> {
@@ -98,6 +221,9 @@ pub(crate) enum Expr<T, U> {
     RFunc(Box<Expr<T, U>>, Vec<Expr<T, U>>),
     SingleOp(SingleOp, Box<Expr<T, U>>),
     DualOp(Box<Expr<T, U>>, DualOp, Box<Expr<T, U>>),
+    Unitary(Unitary),
+    Qub(U, Box<Qubit>),
+    Ket(Box<Ket<Expr<T, U>>>),
 }
 
 impl<T: ComplexFloat, U> Expr<T, U> {
