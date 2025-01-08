@@ -127,7 +127,7 @@ impl Expression {
                 Ok(Expr::Qub(
                     name.to_string(),
                     Qubit {
-                        value: Value::Expression(inner),
+                        value: Value::Ket(inner),
                     }
                     .into(),
                 ))
