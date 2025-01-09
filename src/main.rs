@@ -58,6 +58,7 @@ enum MetaProgramError {
     VariableNotFound,
     KetInExpressionNotAllowed,
     QubitNonKetAssignment,
+    WrongArgumentAmount,
 }
 
 #[derive(Debug, PartialEq, Clone)]

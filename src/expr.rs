@@ -45,7 +45,8 @@ impl Expression {
                     .map(|ele| ele.simplify(variables, qubits, procedures, unitaries))
                     .collect::<Result<Vec<_>, _>>()?;
                 if let Some(unit) = unitaries.get(ident) {
-                    todo!("calculate unitary function {unit:#?}, we have params {params:#?}")
+                    let simple = unit.simplify(variables, qubits, procedures, unitaries)?;
+                    Ok(Expr::Unitary(simple, params))
                 } else if let Some(proc) = procedures.get(ident) {
                     todo!("calculate procedure {proc:#?}, we have params {params:#?}")
                 } else {
@@ -104,7 +105,7 @@ impl Expression {
                 }
             }
             Expr::Res(val) => Ok(Expr::Res(*val)),
-            Expr::Unitary(unit) => Ok(Expr::Unitary(unit.clone())),
+            Expr::Unitary(unit, params) => Ok(Expr::Unitary(unit.clone(), params.clone())),
             Expr::Qub(name, qub) => {
                 let Qubit { value } = *qub.clone();
                 let inner = match value {
@@ -221,7 +222,7 @@ pub(crate) enum Expr<T, U> {
     RFunc(Box<Expr<T, U>>, Vec<Expr<T, U>>),
     SingleOp(SingleOp, Box<Expr<T, U>>),
     DualOp(Box<Expr<T, U>>, DualOp, Box<Expr<T, U>>),
-    Unitary(Unitary),
+    Unitary(Unitary, Vec<Expr<T, U>>),
     Qub(U, Box<Qubit>),
     Ket(Box<Ket<Expr<T, U>>>),
 }

@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+
+use num_complex::Complex64;
 use pest::iterators::{Pair, Pairs};
 
 use crate::{
     expr::{Expr, Expression},
     function::parse_function_call,
     r#for::parse_for_loop,
-    ParserError, Rule, UnitaryBody, UnitaryBodyStmt, UnitaryStmt,
+    Ident, MetaProgramError, ParserError, Procedure, Qubit, Rule, Unitary, UnitaryBody,
+    UnitaryBodyStmt, UnitaryStmt, Variable,
 };
 
 pub(crate) fn parse_unitary_body(pairs: &mut Pairs<Rule>) -> Result<UnitaryBody, ParserError> {
@@ -43,6 +47,33 @@ fn parse_unitary_statement(pair: Pair<Rule>) -> Result<UnitaryBodyStmt, ParserEr
         rule => {
             unreachable!("expected valid unitary statement, got {rule:#?} with pairs {pair:#?}")
         }
+    }
+}
+
+impl Unitary {
+    pub(crate) fn simplify(
+        &self,
+        variables: &HashMap<Ident, Variable>,
+        qubits: &HashMap<Ident, Qubit>,
+        procedures: &HashMap<Ident, Procedure>,
+        unitaries: &HashMap<Ident, Unitary>,
+    ) -> Result<Self, MetaProgramError> {
+        Ok(Unitary {
+            parameters: self.parameters.clone(),
+            steps: self
+                .steps
+                .iter()
+                .map(|step| match step {
+                    UnitaryBodyStmt::ForLoop(_) => todo!(),
+                    UnitaryBodyStmt::Stmt(unitary_stmt) => {
+                        UnitaryBodyStmt::Stmt(unitary_stmt.clone())
+                    }
+                    UnitaryBodyStmt::Rec(unit, vec) => {
+                        todo!("we need to simplify {unitary_body_stmt:#?} with parameters {:#?} after comes {vec:#?}", self.parameters);
+                    }
+                })
+                .collect(),
+        })
     }
 }
 
